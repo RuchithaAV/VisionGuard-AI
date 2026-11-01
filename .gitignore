@@ -41,3 +41,17 @@ wheels/
 *.swo
 .DS_Store
 Thumbs.db
+
+# Datasets & weights
+data/raw/*
+!data/raw/README.md
+data/processed/*
+!data/processed/.gitkeep
+artifacts/*
+!artifacts/README.md
+*.h5
+*.keras
+*.onnx
+*.pt
+*.pth
+mlruns/
