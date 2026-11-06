@@ -64,3 +64,4 @@ If you have Kaggle CLI configured:
 kaggle datasets download -d ipythonx/mvtec-ad -p data/raw/
 ```
 Unzip and extract `metal_nut`, `screw`, and `capsule` into `data/raw/`.
+

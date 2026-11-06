@@ -131,3 +131,4 @@ if __name__ == "__main__":
     import sys
     data_directory = sys.argv[1] if len(sys.argv) > 1 else "data/raw"
     run_verification(data_directory)
+

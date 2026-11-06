@@ -1,0 +1,13 @@
+dataset:
+  name: "mvtec_ad"
+  raw_dir: "data/raw"
+  processed_dir: "data/processed"
+  target_categories:
+    - "metal_nut"
+    - "screw"
+    - "capsule"
+  image_size: [256, 256]
+  channels: 3
+  val_split_ratio: 0.15 # Split taken strictly from normal training images for validation/threshold calibration
+  random_seed: 42
+
