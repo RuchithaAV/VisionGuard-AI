@@ -161,8 +161,8 @@ VisionGuard-AI/
 | Milestone | Focus | Key Deliverables | Status |
 | :---: | :--- | :--- | :---: |
 | **01** | **Dataset & Data Engineering** | Automated verification, exploratory notebook, verified TF pipeline | 🟢 *Completed (Verified)* |
-| **02** | **Convolutional Autoencoder** | Encoder-decoder functional model, MSE/SSIM loss, reconstruction maps | 🟡 *In Progress* |
-| **03** | **Advanced Autoencoder Studies** | Custom `tf.GradientTape` loops, bottleneck tuning, threshold calibration | ⚪ *Planned* |
+| **02** | **Convolutional Autoencoder** | Encoder-decoder functional model, MSE/SSIM loss, reconstruction maps | 🟢 *Completed (Verified)* |
+| **03** | **Advanced Autoencoder Studies** | Custom `tf.GradientTape` loops, bottleneck tuning, threshold calibration | 🟡 *In Progress* |
 | **04** | **PatchCore Feature Memory** | EfficientNetB0 feature extraction, memory bank, nearest-neighbor scoring | ⚪ *Planned* |
 | **05** | **Evaluation & Benchmarking** | Image-AUROC, Pixel-AUROC, IoU, AUPRO, MLflow tracking | ⚪ *Planned* |
 | **06** | **Decision Engine & XAI** | Defect area % estimation, heatmap blending, PASS/FAIL/REVIEW logic | ⚪ *Planned* |
@@ -196,11 +196,11 @@ Outputs automated integrity validation across all train, test, and ground-truth 
 ### 3. Run Exploration Notebook
 Open `notebooks/01_data_exploration.ipynb` in Antigravity / VS Code with the `.venv` kernel to view defect footprints, channel distributions, and downscaling benchmarks.
 
-### 4. Run Automated Unit Tests
+### 4. Run Automated Unit Tests (9 Tests Passing)
 ```powershell
-python -m pytest -v tests/test_data.py
+python -m pytest -v
 ```
-Verifies image preprocessing ranges, strict binary mask outputs, and zero-leakage dataset splits across all three categories.
+Verifies image preprocessing ranges, strict binary mask outputs, zero-leakage dataset splits, Keras functional layer dimensions, forward-pass bounds, and inference localization math.
 
 ---
 
