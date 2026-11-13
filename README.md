@@ -1,4 +1,4 @@
-# VisionGuard AI — Industrial Visual Quality Inspection & Defect Detection System
+# VisionGuard AI - Industrial Visual Quality Inspection & Defect Detection System
 
 [![Python 3.13](https://img.shields.io/badge/Python-3.13-blue.svg)](https://www.python.org/)
 [![Framework: TensorFlow/Keras](https://img.shields.io/badge/Framework-TensorFlow%20%7C%20Keras-orange.svg)](https://tensorflow.org/)
