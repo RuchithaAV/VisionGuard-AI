@@ -2,7 +2,7 @@
 VisionGuard AI - Model Architecture and Localization Unit Tests
 
 Verifies tensor dimensions, forward pass shapes, error map calculations,
-and anomaly scoring logic.
+foreground edge-masking, and anomaly scoring logic.
 """
 
 import numpy as np
@@ -11,16 +11,17 @@ import pytest
 
 from src.models.autoencoder import build_autoencoder, build_encoder, build_decoder
 from src.inference.localization import (
+    extract_foreground_mask,
     compute_reconstruction_error_map,
     generate_heatmap_and_overlay,
-    calculate_image_anomaly_score
+    calculate_image_anomaly_score,
 )
 
 
 def test_autoencoder_architecture_shapes():
     """Verify encoder bottleneck and decoder output dimensions."""
     ae, enc, dec = build_autoencoder(input_shape=(256, 256, 3))
-    
+
     assert enc.output_shape == (None, 16, 16, 256), f"Expected (None, 16, 16, 256), got {enc.output_shape}"
     assert dec.output_shape == (None, 256, 256, 3), f"Expected (None, 256, 256, 3), got {dec.output_shape}"
     assert ae.output_shape == (None, 256, 256, 3), f"Expected (None, 256, 256, 3), got {ae.output_shape}"
@@ -30,7 +31,7 @@ def test_autoencoder_forward_pass():
     """Verify that a batch of images passes through and outputs valid probabilities in [0.0, 1.0]."""
     ae, _, _ = build_autoencoder(input_shape=(256, 256, 3))
     dummy_input = tf.random.uniform((2, 256, 256, 3), minval=0.0, maxval=1.0)
-    
+
     output = ae(dummy_input)
     assert output.shape == (2, 256, 256, 3)
     assert tf.reduce_min(output) >= 0.0, "Output has values below 0.0"
@@ -41,7 +42,7 @@ def test_reconstruction_error_map():
     """Verify error map generation and Gaussian smoothing dimensions."""
     orig = np.ones((256, 256, 3), dtype=np.float32)
     recon = np.zeros((256, 256, 3), dtype=np.float32)
-    
+
     error_map = compute_reconstruction_error_map(orig, recon, gaussian_kernel=7, sigma=1.5)
     assert error_map.shape == (256, 256), f"Expected (256, 256), got {error_map.shape}"
     assert np.allclose(error_map, 1.0, atol=1e-2), "Error map should be ~1.0 for complete difference"
@@ -51,7 +52,7 @@ def test_heatmap_and_overlay_shapes_and_types():
     """Verify heatmap and overlay shapes and uint8 [0, 255] range."""
     orig = np.random.uniform(0.0, 1.0, (256, 256, 3)).astype(np.float32)
     error_map = np.random.uniform(0.0, 1.0, (256, 256)).astype(np.float32)
-    
+
     heatmap, overlay = generate_heatmap_and_overlay(orig, error_map, alpha=0.6)
     assert heatmap.shape == (256, 256, 3)
     assert overlay.shape == (256, 256, 3)
@@ -63,8 +64,35 @@ def test_anomaly_score_calculation():
     """Verify that top-k anomaly score is strictly positive and scales with error."""
     low_error = np.full((256, 256), 0.05, dtype=np.float32)
     high_error = np.full((256, 256), 0.50, dtype=np.float32)
-    
+
     low_score = calculate_image_anomaly_score(low_error, method="top_k_mean")
     high_score = calculate_image_anomaly_score(high_error, method="top_k_mean")
-    
+
     assert low_score < high_score, "High error map must yield a higher anomaly score"
+
+
+def test_extract_foreground_mask_erosion():
+    """Verify foreground mask isolates a centered object and erodes its outer border."""
+    img = np.full((256, 256, 3), 0.05, dtype=np.float32)  # Dark background
+    img[60:196, 60:196] = 0.70  # Bright centered part
+
+    mask = extract_foreground_mask(img, erode_pixels=10)
+    assert mask.shape == (256, 256)
+    assert mask[128, 128] == 1.0, "Center of object must be inside eroded mask"
+    assert mask[62, 62] == 0.0, "Outer edge of object must be eroded away"
+    assert mask[10, 10] == 0.0, "Background must be excluded"
+
+
+def test_masked_anomaly_score_ignores_border_artifacts():
+    """Verify masked scoring ignores bright edge errors outside the foreground mask."""
+    error_map = np.full((256, 256), 0.05, dtype=np.float32)
+    error_map[0:20, :] = 0.95  # High error along top border
+
+    mask = np.zeros((256, 256), dtype=np.float32)
+    mask[80:180, 80:180] = 1.0  # Interior region only
+
+    unmasked_score = calculate_image_anomaly_score(error_map, method="top_k_mean")
+    masked_score = calculate_image_anomaly_score(error_map, method="top_k_mean", mask=mask)
+
+    assert unmasked_score > 0.50
+    assert masked_score == pytest.approx(0.05, abs=1e-5)
