@@ -17,6 +17,7 @@ from tensorflow.keras import optimizers, callbacks
 # 2. NOW import from src (it will find 'src' cleanly!)
 from src.models.autoencoder import build_autoencoder
 from src.data.loader import create_autoencoder_datasets
+from src.training.losses import get_loss
 from pathlib import Path
 
 # Ensure project root is in sys.path so 'src' is discoverable
@@ -34,7 +35,9 @@ def train_autoencoder(
     epochs: int = 40,
     learning_rate: float = 1e-3,
     val_split: float = 0.15,
-    random_seed: int = 42
+    random_seed: int = 42,
+    loss_type: str = "mse",
+    ssim_weight: float = 0.5
 ) -> Dict[str, Any]:
     """
     Trains a Convolutional Autoencoder on normal samples of a specific category.
@@ -49,6 +52,8 @@ def train_autoencoder(
         learning_rate: Initial Adam optimizer learning rate.
         val_split: Percentage of normal images reserved for validation.
         random_seed: Reproducibility seed.
+        loss_type: 'mse' (baseline) or 'ssim_mae' (Milestone 03 structural loss).
+        ssim_weight: Weight of the SSIM term when loss_type='ssim_mae'.
 
     Returns:
         Dict containing trained model, history dictionary, and checkpoint path.
@@ -56,13 +61,17 @@ def train_autoencoder(
     # Create artifacts directory for saving weights
     save_dir = Path(artifacts_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
-    checkpoint_path = save_dir / f"autoencoder_{category}_best.keras"
+    # Baseline keeps its original filename; new loss strategies get a suffix
+    # so experiments never overwrite each other.
+    suffix = "" if loss_type == "mse" else f"_{loss_type}"
+    checkpoint_path = save_dir / f"autoencoder_{category}{suffix}_best.keras"
 
     print("==================================================")
     print(f" VisionGuard AI - Autoencoder Training: [{category.upper()}]")
     print(f" Target Resolution: {target_size}")
     print(f" Batch Size:        {batch_size}")
     print(f" Initial LR:        {learning_rate}")
+    print(f" Loss Strategy:     {loss_type}" + (f" (ssim_weight={ssim_weight})" if loss_type == "ssim_mae" else ""))
     print(f" Model Checkpoint:  {checkpoint_path}")
     print("==================================================\n")
 
@@ -83,11 +92,11 @@ def train_autoencoder(
         alpha=0.2
     )
 
-    # 3. Compile with Mean Squared Error (MSE) and Adam Optimizer
+    # 3. Compile with the selected loss (MSE baseline or SSIM+MAE) and Adam Optimizer
     optimizer = optimizers.Adam(learning_rate=learning_rate)
     autoencoder.compile(
         optimizer=optimizer,
-        loss="mse",
+        loss=get_loss(loss_type, ssim_weight=ssim_weight),
         metrics=["mae"] # Mean Absolute Error for tracking
     )
 
