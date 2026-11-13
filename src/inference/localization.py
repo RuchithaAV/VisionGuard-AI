@@ -52,6 +52,16 @@ def extract_foreground_mask(
     close_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
     binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, close_kernel)
 
+    # 3. Morphological closing to fill specular highlights inside metallic surfaces
+    close_kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9))
+    binary = cv2.morphologyEx(binary, cv2.MORPH_CLOSE, close_kernel)
+
+    # 3b. Fill internal shadow holes so erosion only trims the outer silhouette
+    contours, _ = cv2.findContours(binary, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if contours:
+        cv2.drawContours(binary, contours, -1, 255, thickness=cv2.FILLED)
+
+
     # 4. Erode inward to strip away outer perimeter and inner-hole edge blur
     if erode_pixels > 0:
         k_size = 2 * erode_pixels + 1
