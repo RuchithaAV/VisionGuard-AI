@@ -3,245 +3,692 @@
 [![Python 3.13](https://img.shields.io/badge/Python-3.13-blue.svg)](https://www.python.org/)
 [![Framework: TensorFlow/Keras](https://img.shields.io/badge/Framework-TensorFlow%20%7C%20Keras-orange.svg)](https://tensorflow.org/)
 [![Dataset: MVTec AD](https://img.shields.io/badge/Dataset-MVTec%20AD-green.svg)](https://www.mvtec.com/company/research/datasets/mvtec-ad)
-[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc-sa/4.0/)
+[![Status](https://img.shields.io/badge/Status-Research%20%26%20Development-yellow.svg)]()
 
-> **VisionGuard AI** is an industry-oriented deep learning and computer vision system engineered for automated, unsupervised visual quality inspection. It detects anomalous product surfaces, calculates calibrated anomaly scores, localizes pixel-level defects via heatmaps, and renders automated factory decisions (**PASS**, **FAIL**, **REVIEW**).
+> **VisionGuard AI** is an industry-oriented computer vision research project designed for automated, unsupervised visual quality inspection in manufacturing environments. It explores deep learning-based anomaly detection to identify defective products, localize anomalous regions through spatial heatmaps, and evaluate inspection performance using image-level and pixel-level metrics.
 
 ---
 
 ## 1. Problem Statement
 
-In modern smart manufacturing, visual quality inspection is critical to ensure zero-defect outgoing quality. However, traditional inspection faces major hurdles:
-- **Human Inspection Limitations:** Prone to fatigue, subjective bias, high cost, and inability to scale at production line speeds.
-- **The Imbalance Challenge:** Defective samples are rare, diverse, and practically unpredictable. Standard supervised classification fails because defective training examples are scarce, and new unseen defect types constantly emerge.
-- **Microscopic Defect Footprints:** As verified in our exploratory benchmarks, industrial defects often occupy **less than 0.25% of the total product area** (e.g., hairline cracks and thread scratches). Global pooling classifiers wash out these subtle signals.
+In modern smart manufacturing, visual quality inspection is essential for maintaining product quality and minimizing defective output. However, conventional inspection approaches face several challenges:
 
-VisionGuard AI solves this using **unsupervised representation learning**, training exclusively on nominal (defect-free) product images to learn the structural manifold of healthy parts and flagging deviations.
+- **Human Inspection Limitations:** Manual inspection is vulnerable to fatigue, subjective judgment, operational costs, and scalability limitations.
+- **Limited Defective Samples:** Industrial defects are often rare, diverse, and difficult to predict. Traditional supervised classification requires sufficient labeled examples of different defect types.
+- **Microscopic Defect Footprints:** Small scratches, cracks, and surface irregularities can occupy less than 0.25% of the product image. Global image-level representations may overlook these localized abnormalities.
+- **Unseen Defects:** Manufacturing environments can introduce previously unseen defect patterns that are not represented in training datasets.
+
+VisionGuard AI investigates **unsupervised anomaly detection**, where models learn normal product characteristics primarily from defect-free training images and identify deviations during inspection.
+
+The project explores two complementary approaches:
+
+1. Reconstruction-based anomaly detection using a Convolutional Autoencoder.
+2. Feature-based anomaly detection using an EfficientNetB0 feature extractor and PatchCore-inspired memory bank.
+
+The objective is to investigate which approach provides more effective anomaly detection and localization across different industrial product categories.
 
 ---
 
 ## 2. Technical Architecture & Multi-Model Approach
 
-VisionGuard AI implements two complementary anomaly detection architectures alongside a calibrated decision engine:
+VisionGuard AI follows a multi-model anomaly detection architecture.
 
-```
-                          ┌──────────────────────────┐
-                          │ Incoming Industrial Image │
-                          └─────────────┬────────────┘
-                                        │
-                         [ Preprocessing & Resizing ]
-                         [ (256x256x3), INTER_AREA  ]
-                                        │
-                 ┌──────────────────────┴──────────────────────┐
-                 ▼                                             ▼
-    ┌──────────────────────────┐                  ┌──────────────────────────┐
-    │       MODEL 1            │                  │       MODEL 2            │
-    │  Custom Conv Autoencoder │                  │ PatchCore Feature-Memory │
-    │  (Unsupervised Recon.)   │                  │ (Pretrained EfficientNet)│
-    └────────────┬─────────────┘                  └────────────┬─────────────┘
-                 │                                             │
-      Reconstruction Error                          Nearest-Neighbor Patch
-       Map (|X - X_hat|)                             Distance in Feature Space
-                 │                                             │
-                 └──────────────────────┬──────────────────────┘
-                                        │
-                                        ▼
-                         ┌─────────────────────────────┐
-                         │   Anomaly Analysis Engine   │
-                         │  • Pixel Heatmap & Overlay  │
-                         │  • Image-level Anomaly Score│
-                         │  • Defect Footprint Area %  │
-                         └──────────────┬──────────────┘
-                                        │
-                                        ▼
-                         ┌─────────────────────────────┐
-                         │  Calibrated Decision Engine │
-                         │  • PASS                     │
-                         │  • REVIEW                   │
-                         │  • FAIL                     │
-                         └─────────────────────────────┘
+```text
+                    Incoming Industrial Image
+                              |
+                   Image Preprocessing
+                    (256 x 256 x 3)
+                              |
+              +---------------+---------------+
+              |                               |
+              v                               v
+    +----------------------+       +--------------------------+
+    |       MODEL 1        |       |         MODEL 2          |
+    |                      |       |                          |
+    | Convolutional        |       | PatchCore-Inspired       |
+    | Autoencoder          |       | Feature Memory           |
+    +----------+-----------+       +------------+-------------+
+               |                               |
+               v                               v
+       Reconstruction Error          EfficientNetB0 Features
+               |                               |
+               v                               v
+       Reconstruction Map             Multi-scale Embeddings
+                                               |
+                                               v
+                                      Nominal Feature Memory
+                                               |
+                                               v
+                                      Nearest Neighbor Search
+                                               |
+                                               v
+                                       Patch Anomaly Scores
+               |                               |
+               +---------------+---------------+
+                               |
+                               v
+                    Anomaly Evaluation
+                               |
+                 +-------------+-------------+
+                 |                           |
+                 v                           v
+          Image-level Metrics          Pixel-level Metrics
+          Image-AUROC                  Pixel-AUROC
+          Average Precision            Anomaly Heatmaps
+          Precision / Recall
+          F1-score
+          Confusion Matrix
 ```
 
 ### Model 1: Custom Convolutional Autoencoder
-- **Principle:** Learns a compressed latent representation ($16 \times 16 \times 256$) of nominal textures and geometries. When an anomalous image is presented, the decoder fails to reconstruct the defect, generating high reconstruction error.
-- **Loss Strategy:** Combined Structural Similarity (SSIM) and Mean Absolute Error (MAE) via `SSIMMAELoss(ssim_weight=0.5)`:
-  $$\mathcal{L} = \alpha \cdot (1 - \text{SSIM}(X, \hat{X})) + (1 - \alpha) \cdot \text{MAE}(X, \hat{X})$$
-- **Localization Enhancements:** Adaptive corner background estimation, Otsu segmentation, morphological contour filling, and elliptical edge erosion to isolate interior part anomalies and suppress boundary artifacts.
+
+**Architecture:** A convolutional encoder-decoder developed using the Keras Functional API.
+
+- **Learning Principle:** Learns compressed representations of nominal product images and reconstructs their original appearance.
+- **Input:** Standardized RGB images of shape `(256, 256, 3)`.
+- **Latent Representation:** The encoder compresses image information into a lower-dimensional feature representation.
+- **Baseline Loss:** Mean Squared Error (MSE).
+- **Advanced Loss:** Custom `SSIMMAELoss`, combining Structural Similarity and Mean Absolute Error.
+
+The combined loss is defined as:
+
+\[
+\mathcal{L} =
+\alpha(1-\operatorname{SSIM}(X,\hat X))
++(1-\alpha)\operatorname{MAE}(X,\hat X)
+\]
+
+Where:
+
+- \(X\) represents the original image.
+- \(\hat X\) represents the reconstructed image.
+- \(\alpha\) controls the contribution of structural similarity.
+
+**Localization Enhancements:**
+
+- Adaptive foreground segmentation.
+- Otsu thresholding.
+- Morphological contour processing.
+- Elliptical boundary erosion.
+- Reconstruction error map generation.
+- Gaussian smoothing and heatmap visualization.
+
+These techniques investigate the reduction of reconstruction artefacts caused by object boundaries and background variations.
 
 ### Model 2: PatchCore-Inspired Feature Memory Bank
-- **Principle:** Extracts multi-scale intermediate feature maps from an ImageNet-pretrained **EfficientNetB0** backbone.
-- **Mechanism:** Builds a core-set memory bank of nominal patch embeddings. At test time, test patches are scored by their nearest-neighbor Euclidean distance against normal reference patches, yielding precise, high-resolution anomaly heatmaps invariant to spatial rotations.
 
-### Anomaly Analysis & Decision Engine
-- **Outputs:** Continuous anomaly score $S \in [0, 1]$, binary anomaly segmentation mask, and defect footprint percentage.
-- **Decision Boundaries:**
-  - **`PASS`**: $S \le \tau_{\text{pass}}$ (Nominal product, no significant deviation).
-  - **`REVIEW`**: $\tau_{\text{pass}} < S \le \tau_{\text{fail}}$ (Uncertain prediction; flagged for human QA verification).
-  - **`FAIL`**: $S > \tau_{\text{fail}}$ (Confirmed defect; rejected from line).
+The second approach introduces pretrained deep feature representations for local anomaly detection.
+
+Unlike reconstruction-based approaches, this method compares local feature representations against a memory bank containing normal product patterns.
+
+**Backbone: EfficientNetB0**
+
+- Uses an ImageNet-pretrained EfficientNetB0.
+- Extracts intermediate feature representations from `block2b_add` and `block3b_add`.
+- Freezes the pretrained backbone weights.
+- Aligns multi-scale feature maps into a common spatial resolution.
+- Applies locally aware average pooling.
+- Concatenates the extracted representations into unified patch embeddings.
+
+**Feature Representation:**
+
+For a 256 × 256 input image:
+
+| Property | Output |
+|---|---|
+| Input image | 256 × 256 × 3 |
+| Feature grid | 32 × 32 |
+| Feature dimensions | 64 |
+| Total patches per image | 1,024 |
+| Flattened representation | 1,024 × 64 |
+
+The resulting feature tensor has the shape:
+
+`(Batch Size, 32, 32, 64)`
+
+**Feature Memory Construction**
+
+The `PatchCoreMemoryBank` class implements the nominal feature-memory mechanism.
+
+1. Extract patch embeddings from nominal training images.
+2. Collect the embeddings into a feature representation pool.
+3. Apply configurable coreset subsampling.
+4. Construct a reduced memory bank.
+5. Fit a Euclidean nearest-neighbor search structure.
+
+The default coreset retention ratio is 5%.
+
+The current implementation uses deterministic random sampling with a fixed seed (`42`) to select representative memory vectors.
+
+**Anomaly Scoring**
+
+During inference:
+
+1. Extract feature embeddings from the test image.
+2. Flatten the spatial feature grid into patch vectors.
+3. Calculate nearest-neighbor distances against the nominal memory bank.
+4. Reshape the patch distances into a spatial anomaly map.
+5. Calculate the image-level anomaly score using the maximum patch distance.
+6. Upscale the anomaly map to the original image resolution.
+7. Apply Gaussian smoothing.
+
+The output consists of:
+
+- Image-level anomaly score.
+- Spatial patch anomaly distances.
+- Full-resolution anomaly heatmap.
+
+**Important:** This is a PatchCore-inspired implementation. Its current random coreset sampling strategy should not be confused with the greedy k-center selection used in the original PatchCore methodology.
 
 ---
 
 ## 3. Dataset & Empirical Discoveries
 
-VisionGuard AI utilizes the benchmark **MVTec Anomaly Detection (MVTec AD)** dataset, focusing on three structurally distinct industrial categories:
+VisionGuard AI utilizes the **MVTec Anomaly Detection (MVTec AD)** benchmark dataset.
 
-| Category | Structural Profile | Raw Resolution | Native Mode | Defect Types | Defect Footprint (% of image) |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **`metal_nut`** | Rigid symmetric metal ring with threading | $700 \times 700$ | RGB | `bent`, `color`, `flip`, `scratch` | $0.436\% - 48.439\%$ |
-| **`screw`** | Elongated threaded mechanical fastener | $1024 \times 1024$ | Grayscale (`L`) | `manipulated_front`, `scratch_head`, `scratch_neck`, `thread_side`, `thread_top` | **$0.151\% - 0.649\%$** |
-| **`capsule`** | Non-metallic pharmaceutical pill | $1000 \times 1000$ | RGB | `crack`, `faulty_imprint`, `poke`, `scratch`, `squeeze` | **$0.249\% - 7.694\%$** |
+The current experiments focus on three structurally different industrial product categories.
 
-### Verified Exploratory Findings:
-1. **Grayscale vs. Color:** `screw` images are natively single-channel grayscale (`Mode: L`), while `metal_nut` and `capsule` are 3-channel RGB. The preprocessing pipeline standardizes all inputs to 3-channel RGB to satisfy pretrained backbone contracts.
-2. **Microscopic Defect Scales:** In `screw`, the `thread_side` defect occupies merely **$0.151\%$** of the total image (1,580 out of 1,048,576 pixels). In `capsule`, hairline `crack` defects occupy **$0.249\%$**.
-3. **Interpolation Artifacts:** Quantization tests confirmed that downsampling binary masks with bilinear interpolation introduces non-binary intermediate artifacts (`[0, 64, 128, 191, 255]`), whereas `INTER_NEAREST` preserves strict binary truth (`[0, 255]`).
+| Category | Structural Profile | Raw Resolution | Native Mode | Defect Types | Defect Footprint |
+|---|---|---|---|---|---|
+| `metal_nut` | Rigid symmetric metal ring with threading | 700 × 700 | RGB | bent, color, flip, scratch | 0.436% – 48.439% |
+| `screw` | Elongated threaded mechanical fastener | 1024 × 1024 | Grayscale | manipulated_front, scratch_head, scratch_neck, thread_side, thread_top | 0.151% – 0.649% |
+| `capsule` | Non-metallic pharmaceutical pill | 1000 × 1000 | RGB | crack, faulty_imprint, poke, scratch, squeeze | 0.249% – 7.694% |
 
-### Empirical Autoencoder Progression & Diagnostic Analysis (`metal_nut`)
+### Verified Exploratory Findings
 
-Across Milestones 02 and 03, we systematically investigated unsupervised autoencoder reconstruction performance on the 115 test images (22 nominal, 93 defective across 4 defect classes) of `metal_nut`:
+**1. Grayscale vs. Color**
 
-| Stage | Configuration | Objective / Loss Function | Post-Processing | Normal Mean ($S$) | Defect Mean ($S$) | Image-AUROC |
-| :---: | :--- | :--- | :--- | :---: | :---: | :---: |
-| **1** | Baseline Conv Autoencoder | Mean Squared Error ($\mathcal{L}_{\text{MSE}}$) | Raw Error Map (Gaussian $\sigma=1.5$) | $0.2647 \pm 0.0306$ | $0.2419 \pm 0.0246$ | **$25.61\%$** |
-| **2** | Structural Loss Autoencoder | SSIM + MAE ($\alpha=0.5$) | Raw Error Map (Gaussian $\sigma=1.5$) | $0.2820 \pm 0.0243$ | $0.2675 \pm 0.0153$ | **$30.21\%$** |
-| **3** | Foreground Edge-Masked AE | SSIM + MAE ($\alpha=0.5$) | Morphological Edge Erosion ($8\text{px}$) | $0.1837 \pm 0.0331$ | $0.1637 \pm 0.0310$ | **$31.67\%$** |
+The `screw` category contains native single-channel grayscale images, whereas `metal_nut` and `capsule` contain RGB images.
 
-#### Key Architectural Diagnostics:
-- **The Edge-Blurring Bottleneck:** Pure MSE rewards spatially smoothed reconstructions. For rigid metallic components like `metal_nut`, minor rotational misalignments or high-frequency hexagonal corners produce large intensity residuals along outer silhouettes ($|0.8 - 0.1| \approx 0.70$) that overwhelm subtle interior scratches ($|0.35 - 0.25| = 0.10$). Consequently, nominal samples with rotational variances scored higher than defects, inverting the baseline AUROC ($25.61\%$).
-- **The Impact of Structural Loss:** Retraining with `SSIMMAELoss` forced the encoder-decoder manifold to penalize lost structural correlation and luminance contrast, driving an immediate **$+4.60\%$** gain ($30.21\%$).
-- **The Impact of Edge Masking:** Dynamically segmenting the foreground part and eroding boundaries by 8 pixels stripped outer silhouette artifacts, driving an additional gain to **$31.67\%$**.
-- **Theoretical Limit & Path to Milestone 04:** While loss and masking improvements yielded a cumulative **$+6.06\%$** gain, pixel-level reconstruction hits an intrinsic ceiling on unaligned rigid bodies. This empirical diagnosis justifies transitioning to **PatchCore Feature Memory (Milestone 04)**, which utilizes rotationally robust, patch-level deep feature embeddings.
+The preprocessing pipeline standardizes the inputs to three channels to support the pretrained EfficientNetB0 architecture.
+
+**2. Microscopic Defect Scales**
+
+Some industrial defects occupy an extremely small proportion of the image.
+
+Examples:
+
+- `screw/thread_side`: approximately 0.151% of the image.
+- `capsule/crack`: approximately 0.249% of the image.
+
+This highlights the importance of localized feature extraction instead of relying exclusively on global image representations.
+
+**3. Interpolation Artifacts**
+
+Exploratory preprocessing experiments identified the importance of interpolation methods when resizing ground-truth segmentation masks.
+
+- Bilinear interpolation can introduce intermediate pixel values.
+- Nearest-neighbor interpolation preserves binary mask labels.
+
+Therefore, nearest-neighbor interpolation is used for binary mask resizing.
 
 ---
 
-## 4. Repository Structure
+## 4. Experimental Results & Autoencoder Progression
+
+Before introducing the feature-memory architecture, several experiments were conducted to investigate reconstruction-based anomaly detection.
+
+The experiments were evaluated using the 115-image `metal_nut` test set, consisting of 22 nominal images and 93 defective images across four defect classes.
+
+### Autoencoder Experimental Comparison
+
+| Stage | Architecture | Loss Function | Post-processing | Normal Mean Score | Defect Mean Score | Image-AUROC |
+|---|---|---|---|---|---|---|
+| 01 | Baseline Conv Autoencoder | MSE | Raw error map | 0.2647 ± 0.0306 | 0.2419 ± 0.0246 | 25.61% |
+| 02 | Structural Loss Autoencoder | SSIM + MAE | Raw error map | 0.2820 ± 0.0243 | 0.2675 ± 0.0153 | 30.21% |
+| 03 | Foreground Edge-Masked AE | SSIM + MAE | 8 px morphological edge erosion | 0.1837 ± 0.0331 | 0.1637 ± 0.0310 | 31.67% |
+
+### Architectural Diagnostics
+
+**Stage 01: Baseline MSE Autoencoder**
+
+The initial experiment revealed that reconstruction errors were strongly influenced by object boundaries and rotational variations.
+
+For rigid metallic objects, small differences in alignment and geometry generated large reconstruction errors around the product silhouette.
+
+Consequently, some nominal samples received higher anomaly scores than defective samples, resulting in poor anomaly separation.
+
+**Stage 02: Structural Similarity Loss**
+
+The custom `SSIMMAELoss` was introduced to incorporate structural information alongside pixel-level reconstruction differences.
+
+The recorded Image-AUROC increased from 25.61% to 30.21%.
+
+**Stage 03: Foreground Edge Masking**
+
+Foreground segmentation and morphological erosion were introduced to suppress boundary-related reconstruction artefacts.
+
+This experiment achieved an Image-AUROC of 31.67%.
+
+### Key Research Findings
+
+- Reconstruction-based anomaly detection can be sensitive to rotational misalignment and object boundaries.
+- Structural similarity provides an additional learning objective beyond pixel-wise reconstruction.
+- Foreground masking can reduce irrelevant boundary errors.
+- Local deep feature representations offer an alternative direction for identifying subtle defects.
+
+The limitations observed in the autoencoder experiments motivated the transition towards PatchCore-inspired feature-memory anomaly detection.
+
+**Note:** These results represent the specific `metal_nut` experiment. They should not be interpreted as general performance across the entire MVTec AD dataset.
+
+### PatchCore Development Progress
+
+The following components have now been implemented:
+
+- Multi-scale EfficientNetB0 feature extraction.
+- Feature-map alignment and patch embedding generation.
+- Feature-memory construction.
+- Configurable coreset subsampling.
+- Euclidean nearest-neighbor search.
+- Image-level anomaly scoring.
+- Spatial anomaly heatmap generation.
+- PatchCore component unit tests.
+
+A complete benchmark comparing both architectures across the selected product categories remains part of the ongoing evaluation work.
+
+No comparative PatchCore performance score is claimed until the corresponding experiments have been completed and validated.
+
+---
+
+## 5. Evaluation Framework
+
+The evaluation module is implemented in:
+
+`src/evaluation/metrics.py`
+
+It provides reusable functions for evaluating image-level and pixel-level anomaly detection.
+
+### Image-Level Evaluation
+
+Implemented functionality:
+
+| Metric | Description |
+|---|---|
+| Image-AUROC | Measures the ability to distinguish normal and defective images across different score thresholds. |
+| Average Precision | Evaluates precision-recall performance. |
+| Precision | Measures the proportion of predicted defects that are actual defects. |
+| Recall | Measures the proportion of actual defects successfully identified. |
+| F1-score | Harmonic mean of precision and recall. |
+| Confusion Matrix | Provides TN, FP, FN and TP counts. |
+
+**Automatic Threshold Optimization**
+
+The evaluation module includes `find_optimal_f1_threshold()`.
+
+It evaluates candidate thresholds using the precision-recall curve and selects the threshold that maximizes F1-score.
+
+The `compute_image_metrics()` function also supports evaluation using a manually supplied threshold.
+
+### Pixel-Level Evaluation
+
+The function `compute_pixel_auroc()` evaluates anomaly localization using:
+
+- Ground-truth defect segmentation masks.
+- Predicted continuous anomaly heatmaps.
+- Pixel-level binary labels.
+- Spatial shape validation.
+
+The implementation supports masks with shapes:
+
+- `(N, H, W)`
+- `(N, H, W, 1)`
+
+The predicted anomaly maps must have matching spatial dimensions.
+
+### Evaluation Reliability
+
+The evaluation module also includes:
+
+- Binary label validation.
+- Validation of normal and defective classes.
+- Input shape consistency checks.
+- Explicit anomaly score direction (`higher score = more anomalous`).
+
+**Additional metrics such as IoU and AUPRO are future extensions and are not currently implemented in the evaluation module.**
+
+---
+
+## 6. Repository Structure
 
 ```text
 VisionGuard-AI/
+│
 ├── configs/
-│   ├── data.yaml              # Centralized data paths, image sizing & splits
-│   ├── model.yaml             # Model hyperparameters & backbone settings
-│   └── training.yaml          # Learning rates, batch sizes, optimizers
+│   ├── data.yaml
+│   ├── model.yaml
+│   └── training.yaml
 │
 ├── data/
-│   ├── raw/                   # MVTec AD categories (git-ignored)
-│   ├── processed/             # Standardized TFRecords / caches
-│   └── README.md              # Dataset acquisition & licensing guidelines
+│   ├── raw/
+│   ├── processed/
+│   └── README.md
 │
 ├── notebooks/
-│   ├── 01_data_exploration.ipynb        # Validated exploratory data analysis
-│   ├── 02_cnn_autoenconder.ipynb        # Baseline convolutional autoencoder (MSE)
-│   ├── 03_autoencoder_ssim_loss.ipynb   # SSIM+MAE loss & edge-masked localization
-│   ├── 04_patchcore_efficientnet.ipynb  # PatchCore feature-memory experiments
-│   └── 05_model_comparison.ipynb        # Comprehensive benchmarking & metrics
+│   ├── 01_data_exploration.ipynb
+│   ├── 02_cnn_autoenconder.ipynb
+│   ├── 03_autoencoder_ssim_loss.ipynb
+│   ├── 04_patchcore_efficientnet.ipynb
+│   └── 05_model_comparison.ipynb
 │
 ├── src/
+│   │
 │   ├── data/
-│   │   ├── download_mvtec.py  # Automated verified dataset fetcher
-│   │   ├── verify_dataset.py  # Automated directory & mask integrity verifier
-│   │   ├── preprocessing.py   # Image normalization & mask binarization
-│   │   └── loader.py          # High-performance tf.data streaming pipelines
+│   │   ├── verify_dataset.py
+│   │   ├── preprocessing.py
+│   │   └── loader.py
 │   │
 │   ├── models/
-│   │   ├── autoencoder.py     # Functional Keras Convolutional Autoencoder
-│   │   ├── efficientnet.py    # Pretrained multi-scale feature extractor
-│   │   └── feature_memory.py  # Core-set sampling & nearest-neighbor search
+│   │   ├── autoencoder.py
+│   │   ├── efficientnet.py
+│   │   └── feature_memory.py
 │   │
 │   ├── training/
-│   │   ├── losses.py          # Serializable SSIM+MAE loss & loss factory
-│   │   ├── train_autoencoder.py # Multi-strategy autoencoder training engine
-│   │   └── train_utils.py     # Learning rate schedulers & early stopping
+│   │   └── losses.py
 │   │
 │   ├── inference/
-│   │   ├── anomaly_detector.py # End-to-end inference orchestrator
-│   │   ├── localization.py     # Heatmaps, Otsu edge-erosion & masked scoring
-│   │   └── decision_engine.py  # Calibrated PASS / REVIEW / FAIL classifier
+│   │   └── localization.py
 │   │
-│   ├── evaluation/
-│   │   ├── metrics.py          # Image-AUROC, Pixel-AUROC, IoU, AUPRO
-│   │   └── visualization.py    # Inspection overlay and error reporting
-│   │
-│   └── utils/
-│       ├── logger.py           # Structured logging
-│       └── config.py           # Configuration loader
+│   └── evaluation/
+│       └── metrics.py
 │
-├── tests/                     # 18 passing unit tests (data, models, losses)
-│   ├── test_data.py           # Preprocessing, binary masks, zero-leakage splits
-│   ├── test_models.py         # Shapes, forward pass, heatmaps, edge masking
-│   └── test_losses.py         # SSIM+MAE numerical constraints & serialization
+├── tests/
+│   ├── test_data.py
+│   ├── test_models.py
+│   ├── test_losses.py
+│   ├── test_patchcore.py
+│   └── test_metrics.py
 │
-├── api/                       # FastAPI REST service (Milestone 07)
-├── dashboard/                 # Streamlit operational inspection UI (Milestone 07)
-├── Dockerfile                 # Containerization specification (Milestone 08)
-├── requirements.txt           # Pinned production dependencies
+├── requirements.txt
 └── README.md
 ```
 
+*The structure above highlights the core project components and should be kept synchronized with the actual repository as additional modules are introduced.*
+
+### Important Source Files
+
+| File | Responsibility |
+|---|---|
+| `src/data/verify_dataset.py` | Dataset structure and integrity verification. |
+| `src/data/preprocessing.py` | Image and mask preprocessing. |
+| `src/data/loader.py` | TensorFlow dataset construction and data splitting. |
+| `src/models/autoencoder.py` | Functional convolutional autoencoder. |
+| `src/models/efficientnet.py` | Multi-scale EfficientNetB0 feature extraction. |
+| `src/models/feature_memory.py` | PatchCore-inspired memory bank and anomaly scoring. |
+| `src/training/losses.py` | Custom SSIM + MAE reconstruction loss. |
+| `src/inference/localization.py` | Reconstruction error maps and heatmap visualization. |
+| `src/evaluation/metrics.py` | Image-level and pixel-level evaluation metrics. |
+
 ---
 
-## 5. Development Roadmap & Milestones
+## 7. Development Roadmap & Milestones
 
 | Milestone | Focus | Key Deliverables | Status |
-| :---: | :--- | :--- | :---: |
-| **01** | **Dataset & Data Engineering** | Automated verification, exploratory notebook, verified TF pipeline | 🟢 *Completed (Verified)* |
-| **02** | **Convolutional Autoencoder** | Encoder-decoder functional model, MSE baseline, reconstruction maps | 🟢 *Completed (Verified)* |
-| **03** | **Advanced Autoencoder Studies** | Custom `SSIMMAELoss`, foreground edge-masking, AUROC ablation ($25.6\% \to 31.7\%$) | 🟢 *Completed (Verified)* |
-| **04** | **PatchCore Feature Memory** | EfficientNetB0 feature extraction, memory bank, nearest-neighbor scoring | 🟡 *Next Focus* |
-| **05** | **Evaluation & Benchmarking** | Image-AUROC, Pixel-AUROC, IoU, AUPRO, MLflow tracking | ⚪ *Planned* |
-| **06** | **Decision Engine & XAI** | Defect area % estimation, heatmap blending, PASS/FAIL/REVIEW logic | ⚪ *Planned* |
-| **07** | **Application Interface** | FastAPI REST endpoints, interactive Streamlit inspection dashboard | ⚪ *Planned* |
-| **08** | **Production Engineering** | Docker containerization, unit/integration testing (pytest), CI/CD | ⚪ *Planned* |
-| **09** | **Domain Shift & Portfolio** | Generalization testing on VisA dataset, technical reporting | ⚪ *Planned* |
+|---|---|---|---|
+| **01** | Dataset & Data Engineering | Dataset verification, exploratory analysis, preprocessing and TensorFlow pipelines. | 🟢 Completed |
+| **02** | Convolutional Autoencoder | Functional encoder-decoder, MSE baseline and reconstruction maps. | 🟢 Completed |
+| **03** | Advanced Autoencoder Studies | SSIM + MAE loss, foreground edge masking and experimental ablation. | 🟢 Completed |
+| **04** | PatchCore Feature Memory | EfficientNetB0 feature extraction, patch embeddings, feature memory, coreset sampling and nearest-neighbor scoring. | 🟢 Implementation completed; benchmarking ongoing |
+| **05** | Evaluation & Benchmarking | Image-AUROC, Pixel-AUROC, Average Precision, threshold analysis and model comparison. | 🟡 Core metrics and unit tests implemented; full benchmarking ongoing |
+| **06** | Decision Engine & Explainability | Defect footprint estimation, interpretable overlays and calibrated PASS / REVIEW / FAIL decisions. | ⚪ Planned |
+| **07** | Application Interface | FastAPI REST API and Streamlit inspection dashboard. | ⚪ Planned |
+| **08** | Production Engineering | Docker, integration testing, experiment tracking and CI/CD. | ⚪ Planned |
+| **09** | Domain Generalization | External dataset evaluation, VisA experiments and technical reporting. | ⚪ Planned |
 
 ---
 
-## 6. Getting Started
+## 8. Getting Started
 
-### 1. Clone & Set Up Environment
+### 1. Clone the Repository
+
 ```powershell
 git clone https://github.com/RuchithaAV/VisionGuard-AI.git
+
 cd VisionGuard-AI
+```
 
-# Create and activate virtual environment
+### 2. Create a Virtual Environment
+
+```powershell
 python -m venv .venv
-.venv\Scripts\activate
 
-# Install dependencies
+.venv\Scripts\activate
+```
+
+### 3. Install Dependencies
+
+```powershell
+pip install --upgrade pip
+
 pip install -r requirements.txt
 ```
 
-### 2. Verify Dataset Integrity
+### 4. Dataset Setup
+
+Download the MVTec AD dataset from the official source:
+
+https://www.mvtec.com/company/research/datasets/mvtec-ad
+
+Place the required categories in the project's expected dataset directory structure.
+
+The current experiments focus on:
+
+- `metal_nut`
+- `screw`
+- `capsule`
+
+### 5. Verify Dataset Integrity
+
 ```powershell
 python src/data/verify_dataset.py
 ```
-Outputs automated integrity validation across all train, test, and ground-truth mask directories for `metal_nut`, `screw`, and `capsule`.
 
-### 3. Run Exploration & Experimentation Notebooks
-Open the notebooks in Antigravity or VS Code with the `.venv` kernel:
-- `notebooks/01_data_exploration.ipynb`: Defect footprint distributions, channel modes, and downscaling interpolation benchmarks.
-- `notebooks/02_cnn_autoenconder.ipynb`: Baseline Convolutional Autoencoder training and reconstruction error inspection.
-- `notebooks/03_autoencoder_ssim_loss.ipynb`: Structural SSIM+MAE training, edge-masked localization, and AUROC ablation.
+The verification utility checks:
 
-### 4. Run Automated Unit Tests (18 Tests Passing)
+- Required category directories.
+- Training and testing directory structures.
+- Ground-truth mask availability.
+- Correspondence between defect images and masks.
+- Dataset image and defect-class summaries.
+
+### 6. Run the Notebooks
+
+Open the project using Jupyter Notebook, VS Code, or Antigravity.
+
+Select the `.venv` Python environment as the notebook kernel.
+
+The main experimental notebooks are:
+
+| Notebook | Purpose |
+|---|---|
+| `01_data_exploration.ipynb` | Dataset exploration and defect-footprint analysis. |
+| `02_cnn_autoenconder.ipynb` | Baseline convolutional autoencoder experiments. |
+| `03_autoencoder_ssim_loss.ipynb` | Structural loss and foreground edge-masking experiments. |
+| `04_patchcore_efficientnet.ipynb` | EfficientNetB0 feature extraction and feature-memory experiments. |
+| `05_model_comparison.ipynb` | Evaluation and model-comparison experiments. |
+
+---
+
+## 9. Automated Testing
+
+VisionGuard AI uses **pytest** for component-level validation.
+
+Execute the complete test suite using:
+
 ```powershell
 python -m pytest -v
 ```
-Executes the comprehensive 18-test verification suite:
-- **`tests/test_data.py` (4 tests):** Image preprocessing shape/range bounds, strict $\{0.0, 1.0\}$ mask binarization, synthetic zero-masks for normal images, and zero-leakage training/validation split guarantees.
-- **`tests/test_models.py` (7 tests):** Functional autoencoder tensor shapes, valid $[0.0, 1.0]$ forward-pass bounds, reconstruction error map calculations, JET colormap blending, top-$k\%$ anomaly scoring, foreground mask extraction, and border-suppression invariance.
-- **`tests/test_losses.py` (7 tests):** Zero-loss on identical images, monotonicity under structural damage, boundary weights ($\alpha=0.0, \alpha=1.0$), invalid weight validation, factory instantiation, Keras serialization round-trip, and one-step training execution.
+
+### Test Modules
+
+**1. `tests/test_data.py`**
+
+Validates the data pipeline:
+
+- Image preprocessing dimensions and value ranges.
+- Binary mask constraints.
+- Normal-image mask handling.
+- Training and validation split integrity.
+
+**2. `tests/test_models.py`**
+
+Validates model architecture and localization:
+
+- Encoder and decoder output shapes.
+- Autoencoder forward-pass behavior.
+- Reconstruction error maps.
+- Heatmap generation and visualization.
+- Foreground mask extraction.
+- Boundary suppression and anomaly scoring.
+
+**3. `tests/test_losses.py`**
+
+Validates custom reconstruction losses:
+
+- Zero loss for identical images.
+- Structural damage sensitivity.
+- SSIM and MAE weighting.
+- Invalid parameter handling.
+- Loss factory functionality.
+- Keras serialization.
+- Training execution.
+
+**4. `tests/test_patchcore.py`**
+
+Validates the feature-memory architecture:
+
+- EfficientNetB0 multi-scale feature extraction.
+- Expected `(B, 32, 32, 64)` output dimensions.
+- Patch-vector flattening.
+- Memory bank construction.
+- Coreset subsampling.
+- Nearest-neighbor anomaly scoring.
+- Heatmap output dimensions.
+
+**5. `tests/test_metrics.py`**
+
+Validates the evaluation framework:
+
+- Perfect image-level anomaly separation.
+- Fixed-threshold confusion matrix calculations.
+- Pixel-AUROC calculations.
+- Support for 3D and 4D ground-truth masks.
+- Invalid single-class label handling.
+
+Run the tests in your local environment to obtain the current test count and execution results.
 
 ---
 
-## 7. Engineering & Evaluation Protocol
+## 10. Engineering & Evaluation Protocol
 
-- **Strict Zero Data Leakage:** Training is conducted exclusively on nominal (`train/good`) samples. Validation splits for loss monitoring and threshold calibration are carved strictly from the nominal training pool. The official `test/` directory is touched only during final benchmarking.
-- **Beyond Accuracy:** Models are evaluated on **Image-AUROC**, **Pixel-AUROC**, **Intersection over Union (IoU)**, and **Area Under the Per-Region Overlap (AUPRO)** curve, paired with inference latency measurements ($ms/\text{image}$).
+The project follows several principles to improve the reliability of its experiments.
+
+### Zero Data Leakage
+
+- Training uses nominal (`train/good`) samples.
+- Validation data is separated from the nominal training pool.
+- Defective test images are not used to construct the feature memory bank.
+- The official test dataset is reserved for evaluation.
+
+### Consistent Evaluation
+
+All evaluation functions follow these label conventions:
+
+| Label | Meaning |
+|---|---|
+| `0` | Normal |
+| `1` | Defective |
+
+Higher anomaly scores indicate stronger evidence of a defect.
+
+### Reproducibility
+
+Experiments should document:
+
+- Product category.
+- Model architecture.
+- Feature extraction configuration.
+- Preprocessing methods.
+- Training and validation settings.
+- Threshold selection methodology.
+- Evaluation metrics.
+
+### Performance Analysis
+
+Future benchmarking will investigate:
+
+- Image-level anomaly discrimination.
+- Pixel-level defect localization.
+- Precision-recall trade-offs.
+- False-positive and false-negative behavior.
+- Inference latency.
+- Memory-bank size and computational requirements.
+- Cross-category generalization.
 
 ---
 
-## 8. License & Attribution
+## 11. Future Improvements
 
-- **Code:** Licensed under the MIT License.
-- **Dataset:** MVTec AD is provided by MVTec Software GmbH under the [Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0)](https://creativecommons.org/licenses/by-nc-sa/4.0/). Strictly intended for non-commercial research and educational demonstration.
-- **Author:** **Ruchitha Vithana** — BSc (Hons) in Information Technology & Management, University of Colombo.
+The next development stages will focus on transforming the research implementation into a more complete industrial inspection system.
+
+### Model Improvements
+
+- Investigate greedy coreset selection and alternative memory reduction strategies.
+- Evaluate different EfficientNet feature extraction layers.
+- Investigate feature normalization and anomaly score calibration.
+- Improve small-defect localization.
+- Compare reconstruction-based and feature-memory-based detection.
+- Evaluate additional industrial product categories.
+
+### Evaluation Improvements
+
+- Intersection over Union (IoU).
+- Area Under the Per-Region Overlap (AUPRO).
+- Per-category benchmarking.
+- Defect-specific performance analysis.
+- Inference latency and memory profiling.
+
+### Explainability
+
+- Defect footprint estimation.
+- Improved anomaly heatmap visualization.
+- Inspection overlays.
+- Interpretable PASS / REVIEW / FAIL decision thresholds.
+
+### Deployment
+
+- FastAPI inference endpoints.
+- Streamlit inspection dashboard.
+- Docker-based deployment.
+- Experiment tracking with MLflow.
+- Automated testing and CI/CD integration.
+
+### Domain Generalization
+
+- Evaluation using the VisA industrial anomaly detection dataset.
+- Investigation of unseen product categories.
+- Cross-dataset robustness analysis.
+
+These are planned improvements and are not represented as completed capabilities.
+
+---
+
+## 12. License & Attribution
+
+**Dataset:** MVTec Anomaly Detection (MVTec AD), provided by MVTec Software GmbH.
+
+Dataset reference:
+
+https://www.mvtec.com/company/research/datasets/mvtec-ad
+
+The MVTec AD dataset is distributed under the Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License (CC BY-NC-SA 4.0).
+
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+**Author:** Ruchitha Vithana
+
+BSc (Hons) in Information Technology & Management  
+University of Colombo, Sri Lanka.
+
+---
+
+*VisionGuard AI is an evolving computer vision research and engineering project. Its architecture, experiments and evaluation framework are being developed incrementally, with an emphasis on reproducibility, reliable anomaly detection and practical industrial applicability.*
