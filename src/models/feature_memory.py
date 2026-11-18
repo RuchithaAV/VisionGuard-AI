@@ -11,6 +11,8 @@ import cv2
 import numpy as np
 from sklearn.neighbors import NearestNeighbors
 import tensorflow as tf
+import json 
+from pathlib import Path
 
 from src.models.efficientnet import MultiScaleFeatureExtractor
 
@@ -141,3 +143,90 @@ class PatchCoreMemoryBank:
             heatmap = cv2.GaussianBlur(heatmap, (gaussian_kernel, gaussian_kernel), sigma)
 
         return image_score, heatmap
+
+    def save(self, artifact_dir: str, metadata: Optional[dict] = None) -> Path:
+        """
+        Saves the fitted coreset memory bank and configuration metadata to disk.
+
+        Args:
+            artifact_dir: Directory path where memory_bank.npz and metadata.json are written.
+            metadata: Optional dictionary (e.g., category name, validation score stats).
+
+        Returns:
+            Path to the saved artifact directory.
+        """
+        if self.memory_bank is None:
+            raise ValueError("Cannot save an unfitted PatchCoreMemoryBank. Call fit() first.")
+
+        out_dir = Path(artifact_dir)
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        np.savez_compressed(out_dir / "memory_bank.npz", memory_bank=self.memory_bank)
+
+        meta = {
+            "coreset_ratio": self.coreset_ratio,
+            "n_neighbors": self.n_neighbors,
+            "spatial_shape": list(self.spatial_shape),
+            "num_vectors": int(self.memory_bank.shape[0]),
+            "feature_dim": int(self.memory_bank.shape[1]),
+            "input_shape": list(self.extractor.input_shape),
+            "layer_names": list(self.extractor.layer_names),
+            "pool_size": int(self.extractor.pool_size),
+        }
+        if metadata:
+            meta.update(metadata)
+
+        with open(out_dir / "metadata.json", "w", encoding="utf-8") as f:
+            json.dump(meta, f, indent=2)
+
+        return out_dir
+
+    @classmethod
+    def load(
+        cls,
+        artifact_dir: str,
+        feature_extractor: Optional[MultiScaleFeatureExtractor] = None,
+    ) -> Tuple["PatchCoreMemoryBank", dict]:
+        """
+        Loads a previously saved PatchCoreMemoryBank and rebuilds its NN index.
+
+        Args:
+            artifact_dir: Directory containing memory_bank.npz and metadata.json.
+            feature_extractor: Optional shared MultiScaleFeatureExtractor instance.
+
+        Returns:
+            Tuple of (loaded PatchCoreMemoryBank, metadata dict).
+        """
+        in_dir = Path(artifact_dir)
+        npz_path = in_dir / "memory_bank.npz"
+        meta_path = in_dir / "metadata.json"
+
+        if not npz_path.exists() or not meta_path.exists():
+            raise FileNotFoundError(f"Missing PatchCore artifacts in {in_dir}")
+
+        with open(meta_path, "r", encoding="utf-8") as f:
+            meta = json.load(f)
+
+        extractor = feature_extractor or MultiScaleFeatureExtractor(
+            input_shape=tuple(meta["input_shape"]),
+            layer_names=meta["layer_names"],
+            pool_size=meta["pool_size"],
+        )
+
+        bank = cls(
+            feature_extractor=extractor,
+            coreset_ratio=meta["coreset_ratio"],
+            n_neighbors=meta["n_neighbors"],
+        )
+        bank.spatial_shape = tuple(meta["spatial_shape"])
+
+        with np.load(npz_path) as data:
+            bank.memory_bank = data["memory_bank"]
+
+        bank.nn_searcher = NearestNeighbors(
+            n_neighbors=bank.n_neighbors, algorithm="auto", metric="euclidean"
+        ).fit(bank.memory_bank)
+
+        return bank, meta
+
+    
