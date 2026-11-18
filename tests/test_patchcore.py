@@ -53,3 +53,25 @@ def test_patchcore_memory_bank_fit_and_score():
     assert isinstance(score, float)
     assert score > 0.0
     assert heatmap.shape == (256, 256)
+
+def test_patchcore_save_and_load_roundtrip(tmp_path):
+    """Verify saving and loading a PatchCoreMemoryBank preserves exact scores and metadata."""
+    dummy_imgs = tf.random.uniform((3, 256, 256, 3), minval=0.0, maxval=1.0)
+    dummy_ds = tf.data.Dataset.from_tensor_slices(dummy_imgs).batch(3)
+
+    bank = PatchCoreMemoryBank(coreset_ratio=0.10).fit(dummy_ds)
+    test_img = np.random.uniform(0.0, 1.0, (256, 256, 3)).astype(np.float32)
+    orig_score, orig_map = bank.score_image(test_img)
+
+    save_dir = tmp_path / "metal_nut_patchcore"
+    bank.save(str(save_dir), metadata={"category": "metal_nut", "val_mean": 18.75})
+
+    loaded_bank, loaded_meta = PatchCoreMemoryBank.load(
+        str(save_dir), feature_extractor=bank.extractor
+    )
+    loaded_score, loaded_map = loaded_bank.score_image(test_img)
+
+    assert loaded_meta["category"] == "metal_nut"
+    assert loaded_meta["val_mean"] == pytest.approx(18.75)
+    assert loaded_score == pytest.approx(orig_score, rel=1e-6)
+    np.testing.assert_allclose(loaded_map, orig_map, rtol=1e-6)
