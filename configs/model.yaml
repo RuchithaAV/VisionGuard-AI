@@ -1,0 +1,28 @@
+# VisionGuard AI - Centralized Model & Decision Calibration Configuration
+
+data:
+  raw_dir: "data/raw/mvtec_ad"
+  categories:
+    - "metal_nut"
+    - "screw"
+    - "capsule"
+  image_size: [256, 256]
+  batch_size: 16
+  val_split: 0.15
+  random_seed: 42
+
+patchcore:
+  artifact_root: "models/patchcore"
+  input_shape: [256, 256, 3]
+  layer_names:
+    - "block2b_add"
+    - "block3b_add"
+  pool_size: 3
+  coreset_ratio: 0.10
+  n_neighbors: 1
+  gaussian_kernel: 7
+  gaussian_sigma: 1.5
+
+decision_engine:
+  pass_std_multiplier: 2.0
+  fail_std_multiplier: 3.5
