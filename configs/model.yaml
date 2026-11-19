@@ -1,7 +1,7 @@
-# VisionGuard AI - Centralized Model & Decision Calibration Configuration
+﻿# VisionGuard AI - Centralized Model & Decision Calibration Configuration
 
 data:
-  raw_dir: "data/raw/mvtec_ad"
+  raw_dir: "data/raw"
   categories:
     - "metal_nut"
     - "screw"
