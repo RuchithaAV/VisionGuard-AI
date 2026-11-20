@@ -57,3 +57,5 @@ artifacts/*
 mlruns/
 
 models/
+
+data/*.db
