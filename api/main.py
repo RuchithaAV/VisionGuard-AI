@@ -1,5 +1,5 @@
 ﻿"""
-VisionGuard AI - FastAPI Inference Service
+VisionGuard AI - FastAPI Inference & Audit Service
 """
 
 from contextlib import asynccontextmanager
@@ -9,9 +9,11 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 
 from src.inference.predictor import VisionGuardPredictor
+from src.storage.history_db import InspectionHistoryDB
 
 
 class InspectionResponse(BaseModel):
+    inspection_id: int
     decision: str
     raw_score: float
     normalized_score: float
@@ -24,14 +26,15 @@ class InspectionResponse(BaseModel):
     overlay_base64: str
 
 
-predictor_state: Dict[str, VisionGuardPredictor] = {}
+app_state: Dict[str, Any] = {}
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    predictor_state["predictor"] = VisionGuardPredictor()
+    app_state["predictor"] = VisionGuardPredictor()
+    app_state["db"] = InspectionHistoryDB()
     yield
-    predictor_state.clear()
+    app_state.clear()
 
 
 app = FastAPI(
@@ -43,10 +46,17 @@ app = FastAPI(
 
 
 def get_predictor() -> VisionGuardPredictor:
-    predictor = predictor_state.get("predictor")
+    predictor = app_state.get("predictor")
     if predictor is None:
         raise HTTPException(status_code=503, detail="Model artifacts not loaded.")
     return predictor
+
+
+def get_db() -> InspectionHistoryDB:
+    db = app_state.get("db")
+    if db is None:
+        raise HTTPException(status_code=503, detail="Inspection database unavailable.")
+    return db
 
 
 @app.get("/health")
@@ -82,6 +92,8 @@ async def inspect_part(
     file: UploadFile = File(..., description="Part image file (PNG or JPG)"),
 ) -> Dict[str, Any]:
     predictor = get_predictor()
+    db = get_db()
+
     if category not in predictor.banks:
         raise HTTPException(
             status_code=400,
@@ -93,6 +105,25 @@ async def inspect_part(
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
 
     try:
-        return predictor.predict(image_bytes=image_bytes, category=category)
+        result = predictor.predict(image_bytes=image_bytes, category=category)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    inspection_id = db.log_inspection(
+        filename=file.filename or "uploaded_part.png",
+        result=result,
+    )
+    result["inspection_id"] = inspection_id
+    return result
+
+
+@app.get("/history")
+def inspection_history(limit: int = 50) -> Dict[str, Any]:
+    db = get_db()
+    return {"records": db.get_recent(limit=limit)}
+
+
+@app.get("/stats")
+def inspection_stats() -> Dict[str, Any]:
+    db = get_db()
+    return db.get_summary_stats()
