@@ -22,7 +22,7 @@ st.set_page_config(
     layout="wide",
 )
 
-st.title("🛡️ VisionGuard AI — Industrial Surface Inspection Console")
+st.title("🛡️ VisionGuard AI - Industrial Surface Inspection Console")
 st.caption("PatchCore Multi-Scale Anomaly Detection • Zero-Leakage 3-State Calibration (PASS / REVIEW / FAIL)")
 
 try:
@@ -127,11 +127,11 @@ with right_col:
         decision = res["decision"]
 
         if decision == "PASS":
-            st.success(f"### ✅ VERDICT: PASS  (Inspection #{res['inspection_id']})")
+            st.success(f"### VERDICT: PASS  (Inspection #{res['inspection_id']})")
         elif decision == "REVIEW":
-            st.warning(f"### ⚠️ VERDICT: REVIEW REQUIRED  (Inspection #{res['inspection_id']})")
+            st.warning(f"### VERDICT: REVIEW REQUIRED  (Inspection #{res['inspection_id']})")
         else:
-            st.error(f"### 🚨 VERDICT: FAIL — DEFECT DETECTED  (Inspection #{res['inspection_id']})")
+            st.error(f"### VERDICT: FAIL - DEFECT DETECTED  (Inspection #{res['inspection_id']})")
 
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Anomaly Score", f"{res['raw_score']:.2f}")
