@@ -474,9 +474,9 @@ Experiments should record the category, model and feature configuration, preproc
 | **03** | Advanced autoencoder studies: SSIM + MAE loss, foreground edge masking. | 🟢 Completed |
 | **04** | PatchCore feature memory: EfficientNetB0 embeddings, coreset memory bank, nearest-neighbour scoring, three-category benchmark. | 🟢 Completed (single-run results) |
 | **05** | Evaluation & benchmarking: metrics module and tests are done; multi-seed runs, per-defect analysis, IoU/AUPRO remain. | 🟡 Partial |
-| **06** | Decision engine & explainability: validation-calibrated PASS/REVIEW/FAIL, normalized risk, defect-area estimate, heatmap overlays. | 🟢 Implemented; test-set evaluation of decisions pending |
+| **06** | Decision engine & explainability: validation-calibrated PASS/REVIEW/FAIL, normalized risk, defect-area estimate, heatmap overlays. | 🟢 Completed (`scripts/evaluate_decisions.py`) |
 | **07** | Application interface: FastAPI service and Streamlit console. | 🟢 Implemented |
-| **08** | Production engineering: Docker, Compose, SQLite audit log, GitHub Actions are in place; MLflow tracking, PostgreSQL, and CI that runs without local data/artifacts remain. | 🟡 Partial |
+| **08** | Production engineering: Docker, Compose, SQLite audit log, GitHub Actions are in place; CI runs cleanly without local data/artifacts; MLflow tracking and PostgreSQL remain planned. | 🟡 Partial |
 | **09** | Domain generalization: external dataset evaluation (VisA) and technical report. | ⚪ Planned |
 
 ---

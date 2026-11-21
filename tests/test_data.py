@@ -1,4 +1,4 @@
-"""
+﻿"""
 VisionGuard AI - Data Pipeline Unit Tests
 
 Verifies preprocessing shapes, value ranges, binary mask constraints,
@@ -8,19 +8,21 @@ and zero-leakage dataset partitioning.
 from pathlib import Path
 import pytest
 import numpy as np
-import tensorflow as tf
 
 from src.data.preprocessing import (
     load_and_preprocess_image,
-    load_and_preprocess_mask
+    load_and_preprocess_mask,
 )
 from src.data.loader import (
     create_autoencoder_datasets,
-    create_test_dataset,
-    get_image_paths
+    get_image_paths,
 )
 
+HAS_MVTEC = Path("data/raw/metal_nut/train/good").exists()
+SKIP_REASON = "MVTec AD raw dataset not present in this environment"
 
+
+@pytest.mark.skipif(not HAS_MVTEC, reason=SKIP_REASON)
 def test_image_preprocessing_shape_and_range():
     """Verify that images are standardized to (256, 256, 3) in [0.0, 1.0]."""
     sample_img_path = next(Path("data/raw/metal_nut/train/good").glob("*.png"))
@@ -31,6 +33,7 @@ def test_image_preprocessing_shape_and_range():
     assert 0.0 <= img.min() and img.max() <= 1.0, f"Pixel values out of range: [{img.min()}, {img.max()}]"
 
 
+@pytest.mark.skipif(not HAS_MVTEC, reason=SKIP_REASON)
 def test_mask_preprocessing_binary():
     """Verify that defect masks are (256, 256, 1) and strictly binary {0.0, 1.0}."""
     sample_mask_path = next(Path("data/raw/metal_nut/ground_truth/bent").glob("*.png"))
@@ -49,10 +52,11 @@ def test_normal_image_empty_mask():
     assert np.all(empty_mask == 0.0), "Expected all zeros for normal image mask"
 
 
+@pytest.mark.skipif(not HAS_MVTEC, reason=SKIP_REASON)
 def test_zero_leakage_split():
     """Verify train and validation subsets have zero overlapping images."""
     category_dir = Path("data/raw/metal_nut")
     train_paths, _, _ = get_image_paths(category_dir, split="train")
-    
+
     train_ds, val_ds, n_train, n_val = create_autoencoder_datasets("metal_nut", batch_size=4)
     assert n_train + n_val == len(train_paths), "Total samples do not match raw training count"

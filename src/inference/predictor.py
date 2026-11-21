@@ -4,6 +4,7 @@ VisionGuard AI - Production Inference Predictor Service
 
 import base64
 import io
+import os
 import time
 from pathlib import Path
 from typing import Any, Dict, List
@@ -27,7 +28,7 @@ class VisionGuardPredictor:
         self.pc_cfg = self.cfg["patchcore"]
 
         self.image_size = tuple(self.data_cfg["image_size"])  # (256, 256)
-        self.artifact_root = Path(self.pc_cfg["artifact_root"])
+        self.artifact_root = Path(os.getenv("VISIONGUARD_MODEL_DIR", self.pc_cfg["artifact_root"]))
         self.categories: List[str] = list(self.data_cfg["categories"])
 
         # Shared frozen EfficientNetB0 backbone across all categories
@@ -126,3 +127,4 @@ class VisionGuardPredictor:
         result["latency_ms"] = latency_ms
         result["overlay_base64"] = overlay_b64
         return result
+
