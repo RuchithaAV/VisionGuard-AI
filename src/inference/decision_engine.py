@@ -140,7 +140,8 @@ class DecisionEngine:
         defect_area_pct = 0.0
         if heatmap is not None:
             hmap = np.asarray(heatmap, dtype=np.float64)
-            defect_area_pct = float(np.mean(hmap > t_pass) * 100.0)
+            loc_thresh = max(t_fail, float(np.max(hmap)) * 0.65) if score > t_pass else t_pass
+            defect_area_pct = float(np.mean(hmap > loc_thresh) * 100.0)
 
         return DecisionResult(
             decision=decision,

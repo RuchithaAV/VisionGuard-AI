@@ -1,4 +1,4 @@
-﻿"""
+"""
 VisionGuard AI - Production Artifact Builder
 
 Fits PatchCoreMemoryBank on nominal training images, calibrates
@@ -44,6 +44,7 @@ def build_all_artifacts(config_path: str = "configs/model.yaml") -> None:
     for category in data_cfg["categories"]:
         cat_ovr = overrides_cfg.get(category, {})
         coreset_ratio = float(cat_ovr.get("coreset_ratio", pc_cfg["coreset_ratio"]))
+        pool_size = int(cat_ovr.get("pool_size", pc_cfg["pool_size"]))
         pass_mult = float(cat_ovr.get("pass_std_multiplier", dec_cfg["pass_std_multiplier"]))
         fail_mult = float(cat_ovr.get("fail_std_multiplier", dec_cfg["fail_std_multiplier"]))
 
@@ -59,7 +60,7 @@ def build_all_artifacts(config_path: str = "configs/model.yaml") -> None:
 
             # 1. Fit PatchCore memory bank on nominal train split
             bank = PatchCoreMemoryBank(
-                feature_extractor=extractor,
+                feature_extractor=MultiScaleFeatureExtractor(input_shape=tuple(pc_cfg["input_shape"]), layer_names=pc_cfg["layer_names"], pool_size=pool_size),
                 coreset_ratio=coreset_ratio,
                 n_neighbors=pc_cfg["n_neighbors"],
             ).fit(train_ds)
@@ -133,3 +134,4 @@ def build_all_artifacts(config_path: str = "configs/model.yaml") -> None:
 
 if __name__ == "__main__":
     build_all_artifacts()
+

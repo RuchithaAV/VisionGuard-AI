@@ -1,4 +1,4 @@
-﻿"""
+"""
 VisionGuard AI - Production Inference Predictor Service
 """
 
@@ -26,23 +26,27 @@ class VisionGuardPredictor:
         self.cfg = load_config(config_path)
         self.data_cfg = self.cfg["data"]
         self.pc_cfg = self.cfg["patchcore"]
+        self.overrides_cfg = self.cfg.get("category_overrides", {})
 
-        self.image_size = tuple(self.data_cfg["image_size"])  # (256, 256)
+        self.image_size = tuple(self.data_cfg["image_size"])
         self.artifact_root = Path(os.getenv("VISIONGUARD_MODEL_DIR", self.pc_cfg["artifact_root"]))
         self.categories: list[str] = list(self.data_cfg["categories"])
 
-        # Shared frozen EfficientNetB0 backbone across all categories
-        self.extractor = MultiScaleFeatureExtractor(
-            input_shape=tuple(self.pc_cfg["input_shape"]),
-            layer_names=self.pc_cfg["layer_names"],
-            pool_size=self.pc_cfg["pool_size"],
-        )
-
+        self._extractors: dict[int, MultiScaleFeatureExtractor] = {}
         self.banks: dict[str, PatchCoreMemoryBank] = {}
         self.engines: dict[str, DecisionEngine] = {}
         self.metadata: dict[str, dict[str, Any]] = {}
 
         self._load_all_categories()
+
+    def _get_extractor(self, pool_size: int) -> MultiScaleFeatureExtractor:
+        if pool_size not in self._extractors:
+            self._extractors[pool_size] = MultiScaleFeatureExtractor(
+                input_shape=tuple(self.pc_cfg["input_shape"]),
+                layer_names=self.pc_cfg["layer_names"],
+                pool_size=pool_size,
+            )
+        return self._extractors[pool_size]
 
     def _load_all_categories(self) -> None:
         for category in self.categories:
@@ -52,8 +56,10 @@ class VisionGuardPredictor:
                     f"Artifact directory missing for '{category}': {cat_dir}. "
                     "Run 'python -m scripts.build_artifacts' first."
                 )
+            cat_ovr = self.overrides_cfg.get(category, {})
+            pool_size = int(cat_ovr.get("pool_size", self.pc_cfg["pool_size"]))
             bank, meta = PatchCoreMemoryBank.load(
-                str(cat_dir), feature_extractor=self.extractor
+                str(cat_dir), feature_extractor=self._get_extractor(pool_size)
             )
             engine = DecisionEngine.from_dict(meta["decision_engine"])
             self.banks[category] = bank
@@ -77,19 +83,24 @@ class VisionGuardPredictor:
         heatmap: np.ndarray,
         pass_threshold: float,
         fail_threshold: float,
-        alpha: float = 0.45,
+        max_alpha: float = 0.65,
     ) -> str:
-        """Renders a calibrated Jet heatmap overlay and encodes it as base64 PNG."""
-        # Scale heatmap relative to calibrated thresholds so normal background stays cool blue
-        denom = max(fail_threshold * 1.25 - pass_threshold * 0.5, 1e-6)
-        norm_map = np.clip((heatmap - pass_threshold * 0.5) / denom, 0.0, 1.0)
+        """Renders a localized anomaly heatmap overlay with transparent normal background."""
+        floor = pass_threshold * 0.90
+        ceil = max(fail_threshold * 1.15, float(np.max(heatmap)))
+        denom = max(ceil - floor, 1e-6)
+        norm_map = np.clip((heatmap - floor) / denom, 0.0, 1.0)
+
+        # Suppress minor noise below 15% of active anomaly range so normal background stays crisp
+        norm_map = np.where(norm_map < 0.15, 0.0, norm_map)
         uint8_map = (norm_map * 255).astype(np.uint8)
 
         colored_bgr = cv2.applyColorMap(uint8_map, cv2.COLORMAP_JET)
-        colored_rgb = cv2.cvtColor(colored_bgr, cv2.COLOR_BGR2RGB)
+        colored_rgb = cv2.cvtColor(colored_bgr, cv2.COLOR_BGR2RGB).astype(np.float32)
 
-        base_uint8 = np.clip(img_rgb * 255.0, 0, 255).astype(np.uint8)
-        blended = cv2.addWeighted(base_uint8, 1.0 - alpha, colored_rgb, alpha, 0)
+        base_float = np.clip(img_rgb * 255.0, 0, 255)
+        alpha_mask = (norm_map * max_alpha)[..., None]
+        blended = (base_float * (1.0 - alpha_mask) + colored_rgb * alpha_mask).astype(np.uint8)
 
         buf = io.BytesIO()
         Image.fromarray(blended).save(buf, format="PNG")
@@ -127,4 +138,3 @@ class VisionGuardPredictor:
         result["latency_ms"] = latency_ms
         result["overlay_base64"] = overlay_b64
         return result
-
