@@ -1,0 +1,10 @@
+﻿.venv/
+venv/
+__pycache__/
+*.py[cod]
+.git/
+.gitignore
+notebooks/
+data/raw/
+data/*.db
+.pytest_cache/
