@@ -23,7 +23,7 @@ def run_benchmark(seeds: tuple[int, ...] = (42, 123, 999)) -> dict:
     cfg = load_config("configs/model.yaml")
     data_cfg = cfg["data"]
     pc_cfg = cfg["patchcore"]
-    dec_cfg = cfg["decision_engine"]
+    dec_cfg = cfg["decision_engine"]`n    overrides_cfg = cfg.get("category_overrides", {})
     img_size = tuple(data_cfg["image_size"])
 
     extractor = MultiScaleFeatureExtractor(
@@ -34,7 +34,7 @@ def run_benchmark(seeds: tuple[int, ...] = (42, 123, 999)) -> dict:
 
     report: dict = {"seeds": list(seeds), "categories": {}}
 
-    for category in data_cfg["categories"]:
+    for category in data_cfg["categories"]:`n        cat_ovr = overrides_cfg.get(category, {})`n        coreset_ratio = float(cat_ovr.get("coreset_ratio", pc_cfg["coreset_ratio"]))`n        pass_mult = float(cat_ovr.get("pass_std_multiplier", dec_cfg["pass_std_multiplier"]))`n        fail_mult = float(cat_ovr.get("fail_std_multiplier", dec_cfg["fail_std_multiplier"]))
         test_dir = Path(data_cfg["raw_dir"]) / category / "test"
         gt_root = Path(data_cfg["raw_dir"]) / category / "ground_truth"
         test_imgs, test_masks, y_true, defect_types = [], [], [], []
@@ -70,7 +70,7 @@ def run_benchmark(seeds: tuple[int, ...] = (42, 123, 999)) -> dict:
             )
             bank = PatchCoreMemoryBank(
                 feature_extractor=extractor,
-                coreset_ratio=pc_cfg["coreset_ratio"],
+                coreset_ratio=coreset_ratio,
                 n_neighbors=pc_cfg["n_neighbors"],
             ).fit(train_ds)
 
@@ -80,8 +80,8 @@ def run_benchmark(seeds: tuple[int, ...] = (42, 123, 999)) -> dict:
                 for v_img in v_batch.numpy()
             ]
             engine = DecisionEngine(
-                pass_std_multiplier=dec_cfg["pass_std_multiplier"],
-                fail_std_multiplier=dec_cfg["fail_std_multiplier"],
+                pass_std_multiplier=pass_mult,
+                fail_std_multiplier=fail_mult,
                 category=category,
             ).fit(np.array(val_scores))
 
@@ -157,3 +157,4 @@ def run_benchmark(seeds: tuple[int, ...] = (42, 123, 999)) -> dict:
 
 if __name__ == "__main__":
     run_benchmark()
+

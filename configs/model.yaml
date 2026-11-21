@@ -26,3 +26,9 @@ patchcore:
 decision_engine:
   pass_std_multiplier: 2.0
   fail_std_multiplier: 3.5
+
+category_overrides:
+  screw:
+    coreset_ratio: 0.40
+    pass_std_multiplier: 0.50
+    fail_std_multiplier: 1.75

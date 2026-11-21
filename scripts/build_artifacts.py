@@ -24,6 +24,7 @@ def build_all_artifacts(config_path: str = "configs/model.yaml") -> None:
     data_cfg = cfg["data"]
     pc_cfg = cfg["patchcore"]
     dec_cfg = cfg["decision_engine"]
+    overrides_cfg = cfg.get("category_overrides", {})
 
     artifact_root = Path(pc_cfg["artifact_root"])
     artifact_root.mkdir(parents=True, exist_ok=True)
@@ -41,6 +42,11 @@ def build_all_artifacts(config_path: str = "configs/model.yaml") -> None:
     print(f"Building VisionGuard AI artifacts into '{artifact_root}' (logging to MLflow)...\n")
 
     for category in data_cfg["categories"]:
+        cat_ovr = overrides_cfg.get(category, {})
+        coreset_ratio = float(cat_ovr.get("coreset_ratio", pc_cfg["coreset_ratio"]))
+        pass_mult = float(cat_ovr.get("pass_std_multiplier", dec_cfg["pass_std_multiplier"]))
+        fail_mult = float(cat_ovr.get("fail_std_multiplier", dec_cfg["fail_std_multiplier"]))
+
         with mlflow.start_run(run_name=f"patchcore-{category}"):
             t0 = time.perf_counter()
             train_ds, val_ds, n_train, n_val = create_autoencoder_datasets(
@@ -54,7 +60,7 @@ def build_all_artifacts(config_path: str = "configs/model.yaml") -> None:
             # 1. Fit PatchCore memory bank on nominal train split
             bank = PatchCoreMemoryBank(
                 feature_extractor=extractor,
-                coreset_ratio=pc_cfg["coreset_ratio"],
+                coreset_ratio=coreset_ratio,
                 n_neighbors=pc_cfg["n_neighbors"],
             ).fit(train_ds)
 
@@ -72,8 +78,8 @@ def build_all_artifacts(config_path: str = "configs/model.yaml") -> None:
 
             # 3. Calibrate 3-state DecisionEngine
             engine = DecisionEngine(
-                pass_std_multiplier=dec_cfg["pass_std_multiplier"],
-                fail_std_multiplier=dec_cfg["fail_std_multiplier"],
+                pass_std_multiplier=pass_mult,
+                fail_std_multiplier=fail_mult,
                 category=category,
             ).fit(val_scores)
 
@@ -97,11 +103,11 @@ def build_all_artifacts(config_path: str = "configs/model.yaml") -> None:
                     "category": category,
                     "backbone": "EfficientNetB0",
                     "layers": ",".join(pc_cfg["layer_names"]),
-                    "coreset_ratio": pc_cfg["coreset_ratio"],
+                    "coreset_ratio": coreset_ratio,
                     "n_neighbors": pc_cfg["n_neighbors"],
                     "random_seed": data_cfg["random_seed"],
-                    "pass_std_multiplier": dec_cfg["pass_std_multiplier"],
-                    "fail_std_multiplier": dec_cfg["fail_std_multiplier"],
+                    "pass_std_multiplier": pass_mult,
+                    "fail_std_multiplier": fail_mult,
                     "n_train": n_train,
                     "n_val": n_val,
                 }
@@ -127,4 +133,3 @@ def build_all_artifacts(config_path: str = "configs/model.yaml") -> None:
 
 if __name__ == "__main__":
     build_all_artifacts()
-
