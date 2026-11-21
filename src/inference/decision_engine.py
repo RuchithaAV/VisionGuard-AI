@@ -6,8 +6,9 @@ Calibrates decision boundaries strictly from held-out normal validation scores
 into factory routing decisions, normalized risk scores, and defect area metrics.
 """
 
-from dataclasses import dataclass, asdict
-from typing import Dict, Any, Optional
+from dataclasses import asdict, dataclass
+from typing import Any
+
 import numpy as np
 
 
@@ -23,7 +24,7 @@ class DecisionResult:
     fail_threshold: float        # Upper boundary for REVIEW (above = FAIL)
     category: str = "unknown"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
@@ -42,8 +43,8 @@ class DecisionEngine:
         pass_std_multiplier: float = 2.0,
         fail_std_multiplier: float = 3.5,
         category: str = "unknown",
-        val_mean: Optional[float] = None,
-        val_std: Optional[float] = None,
+        val_mean: float | None = None,
+        val_std: float | None = None,
     ):
         if pass_std_multiplier <= 0 or fail_std_multiplier <= pass_std_multiplier:
             raise ValueError(
@@ -52,8 +53,8 @@ class DecisionEngine:
         self.pass_std_multiplier = float(pass_std_multiplier)
         self.fail_std_multiplier = float(fail_std_multiplier)
         self.category = category
-        self.val_mean: Optional[float] = float(val_mean) if val_mean is not None else None
-        self.val_std: Optional[float] = float(val_std) if val_std is not None else None
+        self.val_mean: float | None = float(val_mean) if val_mean is not None else None
+        self.val_std: float | None = float(val_std) if val_std is not None else None
 
     @property
     def is_calibrated(self) -> bool:
@@ -113,7 +114,7 @@ class DecisionEngine:
     def evaluate(
         self,
         raw_score: float,
-        heatmap: Optional[np.ndarray] = None,
+        heatmap: np.ndarray | None = None,
     ) -> DecisionResult:
         """
         Classifies a single image into PASS, REVIEW, or FAIL and computes diagnostics.
@@ -152,7 +153,7 @@ class DecisionEngine:
             category=self.category,
         )
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Serializes calibration parameters for storage inside metadata.json."""
         return {
             "category": self.category,
@@ -165,7 +166,7 @@ class DecisionEngine:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "DecisionEngine":
+    def from_dict(cls, data: dict[str, Any]) -> "DecisionEngine":
         """Reconstructs a calibrated DecisionEngine from metadata.json."""
         return cls(
             pass_std_multiplier=data.get("pass_std_multiplier", 2.0),

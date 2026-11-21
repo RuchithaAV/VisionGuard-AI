@@ -1,4 +1,4 @@
-"""
+﻿"""
 VisionGuard AI - Standardized Anomaly Detection Evaluation Metrics
 
 Computes image-level and pixel-level detection metrics (Image AUROC, Pixel AUROC,
@@ -6,13 +6,14 @@ Average Precision, Precision, Recall, F1-Score, Confusion Matrix) with strict
 label validation (0 = normal, 1 = defect; higher anomaly score = defect).
 """
 
-from typing import Dict, Any, Optional, Tuple
+from typing import Any
+
 import numpy as np
 from sklearn.metrics import (
-    roc_auc_score,
     average_precision_score,
-    precision_recall_curve,
     confusion_matrix,
+    precision_recall_curve,
+    roc_auc_score,
 )
 
 
@@ -30,7 +31,7 @@ def validate_binary_labels(labels: np.ndarray, name: str = "labels") -> np.ndarr
 def find_optimal_f1_threshold(
     y_true: np.ndarray,
     y_scores: np.ndarray
-) -> Tuple[float, float, float, float]:
+) -> tuple[float, float, float, float]:
     """
     Finds the anomaly score threshold that maximizes F1-score.
 
@@ -58,8 +59,8 @@ def find_optimal_f1_threshold(
 def compute_image_metrics(
     y_true: np.ndarray,
     y_scores: np.ndarray,
-    threshold: Optional[float] = None
-) -> Dict[str, Any]:
+    threshold: float | None = None
+) -> dict[str, Any]:
     """
     Computes image-level anomaly detection metrics.
 
@@ -134,3 +135,24 @@ def compute_pixel_auroc(
 
     validate_binary_labels(flat_masks, "gt_masks")
     return float(roc_auc_score(flat_masks, flat_maps))
+
+def compute_pixel_iou(
+    y_true_masks: np.ndarray,
+    y_pred_heatmaps: np.ndarray,
+    threshold: float,
+) -> float:
+    """Computes pooled pixel-level Intersection-over-Union (IoU) at a fixed threshold."""
+    gt = np.asarray(y_true_masks)
+    pred = np.asarray(y_pred_heatmaps)
+    if gt.ndim == 4 and gt.shape[-1] == 1:
+        gt = gt[..., 0]
+    if pred.ndim == 4 and pred.shape[-1] == 1:
+        pred = pred[..., 0]
+    if gt.shape != pred.shape:
+        raise ValueError(f"Mask shape {gt.shape} does not match heatmap shape {pred.shape}")
+
+    gt_bin = gt > 0.5
+    pred_bin = pred > threshold
+    intersection = int(np.logical_and(gt_bin, pred_bin).sum())
+    union = int(np.logical_or(gt_bin, pred_bin).sum())
+    return float(intersection / union) if union > 0 else 1.0

@@ -6,13 +6,13 @@ subsampling to optimize memory/speed, and computes nearest-neighbor patch
 anomaly heatmaps and calibrated image-level anomaly scores.
 """
 
-from typing import Optional, Tuple
+import json
+from pathlib import Path
+
 import cv2
 import numpy as np
-from sklearn.neighbors import NearestNeighbors
 import tensorflow as tf
-import json 
-from pathlib import Path
+from sklearn.neighbors import NearestNeighbors
 
 from src.models.efficientnet import MultiScaleFeatureExtractor
 
@@ -29,7 +29,7 @@ class PatchCoreMemoryBank:
 
     def __init__(
         self,
-        feature_extractor: Optional[MultiScaleFeatureExtractor] = None,
+        feature_extractor: MultiScaleFeatureExtractor | None = None,
         coreset_ratio: float = 0.05,
         n_neighbors: int = 1,
     ):
@@ -37,11 +37,11 @@ class PatchCoreMemoryBank:
         self.coreset_ratio = coreset_ratio
         self.n_neighbors = n_neighbors
 
-        self.memory_bank: Optional[np.ndarray] = None
-        self.nn_searcher: Optional[NearestNeighbors] = None
-        self.spatial_shape: Tuple[int, int] = (32, 32)
+        self.memory_bank: np.ndarray | None = None
+        self.nn_searcher: NearestNeighbors | None = None
+        self.spatial_shape: tuple[int, int] = (32, 32)
 
-    def fit(self, dataset: tf.data.Dataset, max_samples: Optional[int] = None) -> "PatchCoreMemoryBank":
+    def fit(self, dataset: tf.data.Dataset, max_samples: int | None = None) -> "PatchCoreMemoryBank":
         """
         Extracts nominal patch features across the entire training dataset and
         builds the coreset-subsampled memory bank.
@@ -102,7 +102,7 @@ class PatchCoreMemoryBank:
         image: np.ndarray,
         gaussian_kernel: int = 7,
         sigma: float = 1.5
-    ) -> Tuple[float, np.ndarray]:
+    ) -> tuple[float, np.ndarray]:
         """
         Calculates the image anomaly score and spatial anomaly heatmap for a single test image.
 
@@ -144,7 +144,7 @@ class PatchCoreMemoryBank:
 
         return image_score, heatmap
 
-    def save(self, artifact_dir: str, metadata: Optional[dict] = None) -> Path:
+    def save(self, artifact_dir: str, metadata: dict | None = None) -> Path:
         """
         Saves the fitted coreset memory bank and configuration metadata to disk.
 
@@ -185,8 +185,8 @@ class PatchCoreMemoryBank:
     def load(
         cls,
         artifact_dir: str,
-        feature_extractor: Optional[MultiScaleFeatureExtractor] = None,
-    ) -> Tuple["PatchCoreMemoryBank", dict]:
+        feature_extractor: MultiScaleFeatureExtractor | None = None,
+    ) -> tuple["PatchCoreMemoryBank", dict]:
         """
         Loads a previously saved PatchCoreMemoryBank and rebuilds its NN index.
 
@@ -204,7 +204,7 @@ class PatchCoreMemoryBank:
         if not npz_path.exists() or not meta_path.exists():
             raise FileNotFoundError(f"Missing PatchCore artifacts in {in_dir}")
 
-        with open(meta_path, "r", encoding="utf-8") as f:
+        with open(meta_path, encoding="utf-8") as f:
             meta = json.load(f)
 
         extractor = feature_extractor or MultiScaleFeatureExtractor(

@@ -6,21 +6,17 @@ train/validation splits and prefetching for training and evaluation.
 """
 
 from pathlib import Path
-from typing import Tuple, List, Optional
-import numpy as np
+
 import tensorflow as tf
 from sklearn.model_selection import train_test_split
 
-from src.data.preprocessing import (
-    load_and_preprocess_image,
-    load_and_preprocess_mask
-)
+from src.data.preprocessing import load_and_preprocess_image, load_and_preprocess_mask
 
 
 def get_image_paths(
     category_dir: Path,
     split: str = "train"
-) -> Tuple[List[str], List[int], List[Optional[str]]]:
+) -> tuple[list[str], list[int], list[str | None]]:
     """
     Collects file paths, binary labels (0=good, 1=defect), and mask paths.
 
@@ -31,9 +27,9 @@ def get_image_paths(
     Returns:
         Tuple of (image_paths, labels, mask_paths).
     """
-    img_paths: List[str] = []
-    labels: List[int] = []
-    mask_paths: List[Optional[str]] = []
+    img_paths: list[str] = []
+    labels: list[int] = []
+    mask_paths: list[str | None] = []
 
     target_dir = category_dir / split
     gt_dir = category_dir / "ground_truth"
@@ -65,11 +61,11 @@ def get_image_paths(
 def create_autoencoder_datasets(
     category: str,
     data_dir: str = "data/raw",
-    target_size: Tuple[int, int] = (256, 256),
+    target_size: tuple[int, int] = (256, 256),
     batch_size: int = 16,
     val_split: float = 0.15,
     random_seed: int = 42
-) -> Tuple[tf.data.Dataset, tf.data.Dataset, int, int]:
+) -> tuple[tf.data.Dataset, tf.data.Dataset, int, int]:
     """
     Builds train and validation tf.data.Dataset streams for Autoencoder training.
     Strictly partitions normal images to guarantee zero leakage.
@@ -125,9 +121,9 @@ def create_autoencoder_datasets(
 def create_test_dataset(
     category: str,
     data_dir: str = "data/raw",
-    target_size: Tuple[int, int] = (256, 256),
+    target_size: tuple[int, int] = (256, 256),
     batch_size: int = 16
-) -> Tuple[tf.data.Dataset, List[int], int]:
+) -> tuple[tf.data.Dataset, list[int], int]:
     """
     Builds evaluation tf.data.Dataset for test images (normal + defects)
     and their matching ground-truth masks.

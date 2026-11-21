@@ -8,9 +8,10 @@ reconstructions that blur sharp object borders, which then dominate the
 anomaly score (see notebook 02, Section 5).
 """
 
-from typing import Dict, Any
-import tensorflow as tf
+from typing import Any
+
 import keras
+import tensorflow as tf
 
 
 @keras.saving.register_keras_serializable(package="visionguard")
@@ -55,7 +56,7 @@ class SSIMMAELoss(keras.losses.Loss):
 
         return self.ssim_weight * ssim_term + (1.0 - self.ssim_weight) * mae_term
 
-    def get_config(self) -> Dict[str, Any]:
+    def get_config(self) -> dict[str, Any]:
         config = super().get_config()
         config.update({
             "ssim_weight": self.ssim_weight,

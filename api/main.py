@@ -3,7 +3,7 @@ VisionGuard AI - FastAPI Inference & Audit Service
 """
 
 from contextlib import asynccontextmanager
-from typing import Any, Dict, List
+from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
@@ -26,7 +26,7 @@ class InspectionResponse(BaseModel):
     overlay_base64: str
 
 
-app_state: Dict[str, Any] = {}
+app_state: dict[str, Any] = {}
 
 
 @asynccontextmanager
@@ -60,7 +60,7 @@ def get_db() -> InspectionHistoryDB:
 
 
 @app.get("/health")
-def health_check() -> Dict[str, Any]:
+def health_check() -> dict[str, Any]:
     predictor = get_predictor()
     return {
         "status": "healthy",
@@ -69,9 +69,9 @@ def health_check() -> Dict[str, Any]:
 
 
 @app.get("/categories")
-def list_categories() -> Dict[str, Any]:
+def list_categories() -> dict[str, Any]:
     predictor = get_predictor()
-    details: List[Dict[str, Any]] = []
+    details: list[dict[str, Any]] = []
     for cat in predictor.categories:
         eng = predictor.engines[cat]
         details.append(
@@ -90,7 +90,7 @@ def list_categories() -> Dict[str, Any]:
 async def inspect_part(
     category: str = Form(..., description="Product category: metal_nut, screw, or capsule"),
     file: UploadFile = File(..., description="Part image file (PNG or JPG)"),
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     predictor = get_predictor()
     db = get_db()
 
@@ -118,12 +118,12 @@ async def inspect_part(
 
 
 @app.get("/history")
-def inspection_history(limit: int = 50) -> Dict[str, Any]:
+def inspection_history(limit: int = 50) -> dict[str, Any]:
     db = get_db()
     return {"records": db.get_recent(limit=limit)}
 
 
 @app.get("/stats")
-def inspection_stats() -> Dict[str, Any]:
+def inspection_stats() -> dict[str, Any]:
     db = get_db()
     return db.get_summary_stats()

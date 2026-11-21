@@ -10,15 +10,16 @@ project_root = Path(__file__).resolve().parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-from typing import Dict, Any, Optional
-import tensorflow as tf
-from tensorflow.keras import optimizers, callbacks
+from pathlib import Path
+from typing import Any
+
+from tensorflow.keras import callbacks, optimizers
+
+from src.data.loader import create_autoencoder_datasets
 
 # 2. NOW import from src (it will find 'src' cleanly!)
 from src.models.autoencoder import build_autoencoder
-from src.data.loader import create_autoencoder_datasets
 from src.training.losses import get_loss
-from pathlib import Path
 
 # Ensure project root is in sys.path so 'src' is discoverable
 project_root = Path(__file__).resolve().parent.parent.parent
@@ -38,7 +39,7 @@ def train_autoencoder(
     random_seed: int = 42,
     loss_type: str = "mse",
     ssim_weight: float = 0.5
-) -> Dict[str, Any]:
+) -> dict[str, Any]:
     """
     Trains a Convolutional Autoencoder on normal samples of a specific category.
 

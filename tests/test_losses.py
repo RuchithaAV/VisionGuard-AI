@@ -6,11 +6,12 @@ for structural damage, correct weighting, serialization, and training wiring.
 """
 
 import numpy as np
-import tensorflow as tf 
 import pytest
+import tensorflow as tf
 
 from src.models.autoencoder import build_autoencoder
 from src.training.losses import SSIMMAELoss, get_loss
+
 
 def _random_batch(n=2, seed=0):
     rng = np.random.default_rng(seed)

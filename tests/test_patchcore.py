@@ -2,9 +2,9 @@
 VisionGuard AI - Patchcore feature extraction & Memory bank tests
 """
 
-import numpy as np 
-import tensorflow as tf
+import numpy as np
 import pytest
+import tensorflow as tf
 
 from src.models.efficientnet import MultiScaleFeatureExtractor
 from src.models.feature_memory import PatchCoreMemoryBank

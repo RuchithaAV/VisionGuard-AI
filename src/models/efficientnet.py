@@ -6,9 +6,9 @@ EfficientNetB0 backbone, performs locally-aware neighborhood pooling, and
 aligns multi-scale representations into a unified patch embedding tensor.
 """
 
-from typing import List, Tuple
-import tensorflow as tf
+
 import keras
+import tensorflow as tf
 from keras import layers
 
 
@@ -25,8 +25,8 @@ class MultiScaleFeatureExtractor:
 
     def __init__(
         self,
-        input_shape: Tuple[int, int, int] = (256, 256, 3),
-        layer_names: List[str] = None,
+        input_shape: tuple[int, int, int] = (256, 256, 3),
+        layer_names: list[str] = None,
         pool_size: int = 3,
     ):
         self.input_shape = input_shape
@@ -89,5 +89,5 @@ class MultiScaleFeatureExtractor:
         """
         embeddings = self(x, training=False)
         # Reshape (B, H, W, C) -> (B * H * W, C)
-        b, h, w, c = tf.shape(embeddings)[0], tf.shape(embeddings)[1], tf.shape(embeddings)[2], tf.shape(embeddings)[3]
+        _b, _h, _w, c = tf.shape(embeddings)[0], tf.shape(embeddings)[1], tf.shape(embeddings)[2], tf.shape(embeddings)[3]
         return tf.reshape(embeddings, [-1, c])

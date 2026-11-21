@@ -6,16 +6,17 @@ and zero-leakage dataset partitioning.
 """
 
 from pathlib import Path
-import pytest
-import numpy as np
 
-from src.data.preprocessing import (
-    load_and_preprocess_image,
-    load_and_preprocess_mask,
-)
+import numpy as np
+import pytest
+
 from src.data.loader import (
     create_autoencoder_datasets,
     get_image_paths,
+)
+from src.data.preprocessing import (
+    load_and_preprocess_image,
+    load_and_preprocess_mask,
 )
 
 HAS_MVTEC = Path("data/raw/metal_nut/train/good").exists()

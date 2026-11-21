@@ -3,9 +3,10 @@ VisionGuard AI - Automated Unit & API Integration Tests
 """
 
 import io
+
 import numpy as np
-from PIL import Image
 from fastapi.testclient import TestClient
+from PIL import Image
 
 from api.main import app
 from src.inference.decision_engine import DecisionEngine

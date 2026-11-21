@@ -8,16 +8,15 @@ Checks:
 4. Generates a summary table of images and defect classes.
 """
 
-import os
 from pathlib import Path
-from typing import Dict, Any
-import pandas as pd
+from typing import Any
 
+import pandas as pd
 
 TARGET_CATEGORIES = ["metal_nut", "screw", "capsule"]
 
 
-def verify_category_structure(category_path: Path) -> Dict[str, Any]:
+def verify_category_structure(category_path: Path) -> dict[str, Any]:
     """Verify that an individual category directory conforms to MVTec AD structure."""
     report = {
         "valid": True,
@@ -76,10 +75,10 @@ def verify_category_structure(category_path: Path) -> Dict[str, Any]:
 def run_verification(data_dir: str = "data/raw") -> bool:
     """Run verification across all target categories."""
     base_path = Path(data_dir)
-    print(f"\n==========================================")
-    print(f" VisionGuard AI - Dataset Verification")
+    print("\n==========================================")
+    print(" VisionGuard AI - Dataset Verification")
     print(f" Target Directory: {base_path.resolve()}")
-    print(f"==========================================\n")
+    print("==========================================\n")
 
     if not base_path.exists():
         print(f"ERROR: Base directory '{base_path}' does not exist.")
@@ -99,12 +98,12 @@ def run_verification(data_dir: str = "data/raw") -> bool:
 
         rep = verify_category_structure(cat_path)
         if rep["valid"]:
-            print(f"  [OK] Valid structure.")
+            print("  [OK] Valid structure.")
             print(f"       Train (Normal): {rep['train_good_count']}")
             print(f"       Test (Normal):  {rep['test_good_count']}")
             print(f"       Defect Types:   {', '.join(f'{k}({v})' for k, v in rep['defect_types'].items())}")
         else:
-            print(f"  [FAILED] Issues found:")
+            print("  [FAILED] Issues found:")
             for err in rep["errors"]:
                 print(f"       - {err}")
             all_valid = False

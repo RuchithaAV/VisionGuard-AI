@@ -5,13 +5,11 @@ Constructs a modular Encoder-Decoder neural network using the Keras Functional A
 for unsupervised visual anomaly reconstruction and localization.
 """
 
-from typing import Tuple, Dict, Any
-import tensorflow as tf
-from tensorflow.keras import layers, Model
+from tensorflow.keras import Model, layers
 
 
 def build_encoder(
-    input_shape: Tuple[int, int, int] = (256, 256, 3),
+    input_shape: tuple[int, int, int] = (256, 256, 3),
     alpha: float = 0.2
 ) -> Model:
     """
@@ -48,7 +46,7 @@ def build_encoder(
 
 
 def build_decoder(
-    latent_shape: Tuple[int, int, int] = (16, 16, 256),
+    latent_shape: tuple[int, int, int] = (16, 16, 256),
     output_channels: int = 3,
     alpha: float = 0.2
 ) -> Model:
@@ -88,9 +86,9 @@ def build_decoder(
 
 
 def build_autoencoder(
-    input_shape: Tuple[int, int, int] = (256, 256, 3),
+    input_shape: tuple[int, int, int] = (256, 256, 3),
     alpha: float = 0.2
-) -> Tuple[Model, Model, Model]:
+) -> tuple[Model, Model, Model]:
     """
     Connects the Encoder and Decoder into an end-to-end Autoencoder Model.
 

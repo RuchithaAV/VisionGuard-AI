@@ -7,7 +7,7 @@ import io
 import os
 import time
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import Any
 
 import cv2
 import numpy as np
@@ -29,7 +29,7 @@ class VisionGuardPredictor:
 
         self.image_size = tuple(self.data_cfg["image_size"])  # (256, 256)
         self.artifact_root = Path(os.getenv("VISIONGUARD_MODEL_DIR", self.pc_cfg["artifact_root"]))
-        self.categories: List[str] = list(self.data_cfg["categories"])
+        self.categories: list[str] = list(self.data_cfg["categories"])
 
         # Shared frozen EfficientNetB0 backbone across all categories
         self.extractor = MultiScaleFeatureExtractor(
@@ -38,9 +38,9 @@ class VisionGuardPredictor:
             pool_size=self.pc_cfg["pool_size"],
         )
 
-        self.banks: Dict[str, PatchCoreMemoryBank] = {}
-        self.engines: Dict[str, DecisionEngine] = {}
-        self.metadata: Dict[str, Dict[str, Any]] = {}
+        self.banks: dict[str, PatchCoreMemoryBank] = {}
+        self.engines: dict[str, DecisionEngine] = {}
+        self.metadata: dict[str, dict[str, Any]] = {}
 
         self._load_all_categories()
 
@@ -95,7 +95,7 @@ class VisionGuardPredictor:
         Image.fromarray(blended).save(buf, format="PNG")
         return base64.b64encode(buf.getvalue()).decode("utf-8")
 
-    def predict(self, image_bytes: bytes, category: str) -> Dict[str, Any]:
+    def predict(self, image_bytes: bytes, category: str) -> dict[str, Any]:
         """Runs end-to-end anomaly scoring, 3-state routing, and heatmap overlay generation."""
         if category not in self.banks:
             raise KeyError(

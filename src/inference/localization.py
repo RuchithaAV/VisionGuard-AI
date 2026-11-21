@@ -6,7 +6,7 @@ to suppress boundary/background artifacts, generates COLORMAP_JET heatmaps,
 and blends semi-transparent inspection overlays.
 """
 
-from typing import Optional, Tuple
+
 import cv2
 import numpy as np
 
@@ -78,7 +78,7 @@ def compute_reconstruction_error_map(
     reconstructed: np.ndarray,
     gaussian_kernel: int = 7,
     sigma: float = 1.5,
-    mask: Optional[np.ndarray] = None
+    mask: np.ndarray | None = None
 ) -> np.ndarray:
     """
     Calculates pixel-level absolute difference between original and reconstructed image,
@@ -116,7 +116,7 @@ def generate_heatmap_and_overlay(
     original: np.ndarray,
     error_map: np.ndarray,
     alpha: float = 0.6
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray]:
     """
     Transforms a continuous 2D error map into an RGB JET heatmap and blends it
     with the original image for visual inspection.
@@ -150,7 +150,7 @@ def calculate_image_anomaly_score(
     error_map: np.ndarray,
     method: str = "top_k_mean",
     k_percent: float = 0.5,
-    mask: Optional[np.ndarray] = None
+    mask: np.ndarray | None = None
 ) -> float:
     """
     Calculates a single scalar anomaly score for an entire image from its error map.

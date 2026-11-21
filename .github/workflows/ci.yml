@@ -24,6 +24,10 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Lint Python codebase with Ruff
+        run: |
+          ruff check src/ api/ dashboard/ tests/ scripts/
+
       - name: Run automated unit & API tests
         run: |
           pytest -v tests/

@@ -4,10 +4,9 @@ VisionGuard AI - Inspection Audit History Database (SQLite)
 
 import os
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Dict, List
-
+from typing import Any
 
 DEFAULT_DB_PATH = Path(os.getenv("INSPECTION_DB_PATH", "data/inspections.db"))
 
@@ -44,8 +43,8 @@ class InspectionHistoryDB:
                 """
             )
 
-    def log_inspection(self, filename: str, result: Dict[str, Any]) -> int:
-        ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+    def log_inspection(self, filename: str, result: dict[str, Any]) -> int:
+        ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M:%S UTC")
         with self._connect() as conn:
             cur = conn.execute(
                 """
@@ -68,14 +67,14 @@ class InspectionHistoryDB:
             )
             return int(cur.lastrowid)
 
-    def get_recent(self, limit: int = 50) -> List[Dict[str, Any]]:
+    def get_recent(self, limit: int = 50) -> list[dict[str, Any]]:
         with self._connect() as conn:
             rows = conn.execute(
                 "SELECT * FROM inspections ORDER BY id DESC LIMIT ?", (limit,)
             ).fetchall()
         return [dict(r) for r in rows]
 
-    def get_summary_stats(self) -> Dict[str, Any]:
+    def get_summary_stats(self) -> dict[str, Any]:
         with self._connect() as conn:
             row = conn.execute(
                 """

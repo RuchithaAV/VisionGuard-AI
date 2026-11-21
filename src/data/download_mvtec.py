@@ -5,9 +5,9 @@ Downloads target MVTec AD categories (metal_nut, screw, capsule)
 directly from the verified Hugging Face mirror into data/raw/.
 """
 
-import os
 import sys
 from pathlib import Path
+
 from huggingface_hub import snapshot_download
 
 TARGET_CATEGORIES = ["metal_nut", "screw", "capsule"]

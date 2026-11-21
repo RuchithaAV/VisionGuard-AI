@@ -6,16 +6,16 @@ foreground edge-masking, and anomaly scoring logic.
 """
 
 import numpy as np
-import tensorflow as tf
 import pytest
+import tensorflow as tf
 
-from src.models.autoencoder import build_autoencoder, build_encoder, build_decoder
 from src.inference.localization import (
-    extract_foreground_mask,
-    compute_reconstruction_error_map,
-    generate_heatmap_and_overlay,
     calculate_image_anomaly_score,
+    compute_reconstruction_error_map,
+    extract_foreground_mask,
+    generate_heatmap_and_overlay,
 )
+from src.models.autoencoder import build_autoencoder
 
 
 def test_autoencoder_architecture_shapes():

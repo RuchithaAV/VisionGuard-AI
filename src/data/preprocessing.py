@@ -6,14 +6,14 @@ and binarizing industrial product images and ground-truth defect masks.
 """
 
 from pathlib import Path
-from typing import Tuple, Optional, Union
+
 import cv2
 import numpy as np
 
 
 def load_and_preprocess_image(
-    image_path: Union[str, Path],
-    target_size: Tuple[int, int] = (256, 256),
+    image_path: str | Path,
+    target_size: tuple[int, int] = (256, 256),
     normalize: bool = True
 ) -> np.ndarray:
     """
@@ -60,8 +60,8 @@ def load_and_preprocess_image(
 
 
 def load_and_preprocess_mask(
-    mask_path: Optional[Union[str, Path]] = None,
-    target_size: Tuple[int, int] = (256, 256),
+    mask_path: str | Path | None = None,
+    target_size: tuple[int, int] = (256, 256),
     binarize: bool = True
 ) -> np.ndarray:
     """
