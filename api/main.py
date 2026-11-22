@@ -107,7 +107,7 @@ async def inspect_part(
     try:
         result = predictor.predict(image_bytes=image_bytes, category=category)
     except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     inspection_id = db.log_inspection(
         filename=file.filename or "uploaded_part.png",
