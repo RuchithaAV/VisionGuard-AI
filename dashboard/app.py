@@ -108,14 +108,28 @@ with right_col:
     st.subheader("2. Inspection Verdict & Defect Localization")
     if run_btn and image_bytes is not None:
         with st.spinner("Extracting multi-scale patches & scoring memory bank..."):
-            resp = requests.post(
-                f"{API_URL}/inspect",
-                data={"category": selected_category},
-                files={"file": (filename, image_bytes, "image/png")},
-                timeout=15,
-            )
+            try:
+                resp = requests.post(
+                    f"{API_URL}/inspect",
+                    data={"category": selected_category},
+                    files={"file": (filename, image_bytes, "image/png")},
+                    timeout=120,
+                )
+            except requests.Timeout:
+                st.error("The inspection is taking longer than 120 seconds. Please retry the same image.")
+                st.stop()
+            except requests.RequestException as exc:
+                st.error(f"Could not contact the inspection API: {exc}")
+                st.stop()
         if resp.status_code != 200:
-            st.error(f"Inspection failed: {resp.text}")
+            try:
+                detail = resp.json().get("detail", resp.text)
+            except requests.JSONDecodeError:
+                detail = resp.text
+            if resp.status_code == 422:
+                st.error(f"### CATEGORY / OBJECT MISMATCH\n\n{detail}")
+            else:
+                st.error(f"Inspection failed: {detail}")
         else:
             res = resp.json()
             st.session_state["last_result"] = res
