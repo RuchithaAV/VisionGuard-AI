@@ -230,22 +230,6 @@ On `metal_nut`, PatchCore raises Image-AUROC from 31.67% (best autoencoder) to 9
 
 ---
 
-
-### 6.3 Multi-Seed & Per-Defect Reproducible Benchmark (`scripts/run_benchmark.py`)
-Evaluated across **3 random seeds (`42, 123, 999`)** using strictly zero-leakage validation thresholds ($\mu_{\text{val}} + 2.0\sigma_{\text{val}}$), saved to `artifacts/benchmark_report.json`:
-
-| Category | Image-AUROC (3-Seed) | Pixel-AUROC (3-Seed) | Pixel-IoU (`pass_thresh`) | Defect Caught (`REVIEW + FAIL`) |
-| :--- | :--- | :--- | :--- | :--- |
-| `metal_nut` | `96.68% +/- 0.81%` | `98.29% +/- 0.03%` | `20.97% +/- 5.99%` | `89.96% +/- 3.55%` |
-| `screw` | `72.97% +/- 1.08%` | `98.32% +/- 0.03%` | `2.35% +/- 0.36%` | `15.41% +/- 2.41%` |
-| `capsule` | `94.27% +/- 0.44%` | `98.85% +/- 0.03%` | `16.37% +/- 5.28%` | `67.58% +/- 10.39%` |
-
-* **Per-defect capture highlights (`REVIEW + FAIL`):**
-  * `metal_nut`: `flip` (`100.0% +/- 0.0%`), `bent` (`98.7% +/- 1.9%`), `color` (`89.4% +/- 7.7%`), `scratch` (`71.0% +/- 5.4%`).
-  * `capsule`: `squeeze` (`88.3% +/- 10.3%`), `crack` (`68.1% +/- 4.1%`), `scratch` (`65.2% +/- 9.4%`), `faulty_imprint` (`60.6% +/- 15.0%`), `poke` (`57.1% +/- 15.6%`).
-  * `screw`: `thread_top` (`26.1% +/- 0.0%`), `scratch_head` (`18.1% +/- 7.9%`), `scratch_neck` (`17.3% +/- 3.8%`), `manipulated_front` (`9.7% +/- 2.0%`), `thread_side` (`5.8% +/- 2.0%`).
----
-
 ## 7. Evaluation Framework
 
 `src/evaluation/metrics.py` provides reusable image-level and pixel-level evaluation with strict label validation (`0` = normal, `1` = defective, **higher score = more anomalous**).
@@ -489,10 +473,10 @@ Experiments should record the category, model and feature configuration, preproc
 | **02** | Convolutional autoencoder: encoder-decoder, MSE baseline, reconstruction maps. | 🟢 Completed |
 | **03** | Advanced autoencoder studies: SSIM + MAE loss, foreground edge masking. | 🟢 Completed |
 | **04** | PatchCore feature memory: EfficientNetB0 embeddings, coreset memory bank, nearest-neighbour scoring, three-category benchmark. | 🟢 Completed (single-run results) |
-| **05** | Evaluation & benchmarking: metrics module (`compute_pixel_iou`), 3-seed confidence intervals, and per-defect breakdown (`scripts/run_benchmark.py`). | 🟢 Completed |
-| **06** | Decision engine & explainability: validation-calibrated PASS/REVIEW/FAIL, normalized risk, defect-area estimate, heatmap overlays. | 🟢 Completed (`scripts/evaluate_decisions.py`) |
+| **05** | Evaluation & benchmarking: metrics module and tests are done; multi-seed runs, per-defect analysis, IoU/AUPRO remain. | 🟡 Partial |
+| **06** | Decision engine & explainability: validation-calibrated PASS/REVIEW/FAIL, normalized risk, defect-area estimate, heatmap overlays. | 🟢 Implemented; test-set evaluation of decisions pending |
 | **07** | Application interface: FastAPI service and Streamlit console. | 🟢 Implemented |
-| **08** | Production engineering: Docker, Compose, SQLite audit log, MLflow tracking (`sqlite:///mlflow.db`), Ruff lint + self-contained GitHub Actions CI. | 🟢 Completed |
+| **08** | Production engineering: Docker, Compose, SQLite audit log, GitHub Actions are in place; MLflow tracking, PostgreSQL, and CI that runs without local data/artifacts remain. | 🟡 Partial |
 | **09** | Domain generalization: external dataset evaluation (VisA) and technical report. | ⚪ Planned |
 
 ---
@@ -541,5 +525,3 @@ University of Colombo, Sri Lanka.
 ---
 
 *VisionGuard AI is an evolving computer vision engineering project. Claims in this document are limited to results recorded in the repository's notebooks and tests.*
-
-
