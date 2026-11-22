@@ -20,8 +20,8 @@ patchcore:
   pool_size: 3
   coreset_ratio: 0.10
   n_neighbors: 1
-  gaussian_kernel: 7
-  gaussian_sigma: 1.5
+  gaussian_kernel: 5
+  gaussian_sigma: 1.0
 
 decision_engine:
   pass_std_multiplier: 2.0
@@ -29,8 +29,13 @@ decision_engine:
 
 category_overrides:
   screw:
+    image_size: [384, 384]
+    input_shape: [384, 384, 3]
+    layer_names:
+      - "block1a_project_bn"
+      - "block2b_add"
     pool_size: 1
-    coreset_ratio: 0.40
-    pass_std_multiplier: 0.50
-    fail_std_multiplier: 1.75
-
+    foreground_only: true
+    coreset_ratio: 0.25
+    pass_std_multiplier: 0.75
+    fail_std_multiplier: 2.0
