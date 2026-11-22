@@ -44,6 +44,9 @@ def build_all_artifacts(config_path: str = "configs/model.yaml") -> None:
     for category in data_cfg["categories"]:
         cat_ovr = overrides_cfg.get(category, {})
         coreset_ratio = float(cat_ovr.get("coreset_ratio", pc_cfg["coreset_ratio"]))
+        cat_img_size = tuple(cat_ovr.get("image_size", data_cfg["image_size"]))
+        cat_in_shape = tuple(cat_ovr.get("input_shape", pc_cfg["input_shape"]))
+        cat_layers = list(cat_ovr.get("layer_names", pc_cfg["layer_names"]))
         pool_size = int(cat_ovr.get("pool_size", pc_cfg["pool_size"]))
         pass_mult = float(cat_ovr.get("pass_std_multiplier", dec_cfg["pass_std_multiplier"]))
         fail_mult = float(cat_ovr.get("fail_std_multiplier", dec_cfg["fail_std_multiplier"]))
@@ -55,12 +58,13 @@ def build_all_artifacts(config_path: str = "configs/model.yaml") -> None:
                 data_dir=data_cfg["raw_dir"],
                 batch_size=data_cfg["batch_size"],
                 val_split=data_cfg["val_split"],
+                target_size=cat_img_size,
                 random_seed=data_cfg["random_seed"],
             )
 
             # 1. Fit PatchCore memory bank on nominal train split
             bank = PatchCoreMemoryBank(
-                feature_extractor=MultiScaleFeatureExtractor(input_shape=tuple(pc_cfg["input_shape"]), layer_names=pc_cfg["layer_names"], pool_size=pool_size),
+                feature_extractor=MultiScaleFeatureExtractor(input_shape=cat_in_shape, layer_names=cat_layers, pool_size=pool_size),
                 coreset_ratio=coreset_ratio,
                 n_neighbors=pc_cfg["n_neighbors"],
             ).fit(train_ds)
