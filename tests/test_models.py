@@ -8,6 +8,9 @@ foreground edge-masking, and anomaly scoring logic.
 import numpy as np
 import pytest
 import tensorflow as tf
+from PIL import Image
+import base64
+import io
 
 from src.inference.localization import (
     calculate_image_anomaly_score,
@@ -15,6 +18,7 @@ from src.inference.localization import (
     extract_foreground_mask,
     generate_heatmap_and_overlay,
 )
+from src.inference.predictor import VisionGuardPredictor
 from src.models.autoencoder import build_autoencoder
 
 
@@ -58,6 +62,47 @@ def test_heatmap_and_overlay_shapes_and_types():
     assert overlay.shape == (256, 256, 3)
     assert heatmap.dtype == np.uint8
     assert overlay.dtype == np.uint8
+
+
+def test_production_overlay_keeps_heatmap_for_pass_result():
+    original = np.full((256, 256, 3), 0.8, dtype=np.float32)
+    heatmap = np.full((256, 256), 10.0, dtype=np.float32)
+    heatmap[100:156, 100:156] = 20.0
+
+    encoded = VisionGuardPredictor._render_overlay_base64(
+        original,
+        heatmap,
+        pass_threshold=12.0,
+        fail_threshold=20.0,
+        decision="PASS",
+        category="screw",
+    )
+    overlay = np.asarray(Image.open(io.BytesIO(base64.b64decode(encoded))), dtype=np.uint8)
+
+    assert overlay.shape == (256, 256, 3)
+    assert not np.array_equal(overlay, (original * 255).astype(np.uint8))
+
+
+def test_category_mismatch_detection():
+    mismatch = VisionGuardPredictor._find_category_mismatch(
+        {
+            "screw": 12.0,
+            "capsule": 0.8,
+            "metal_nut": 8.0,
+        },
+        "screw",
+    )
+    assert mismatch == "capsule"
+
+    defect_in_selected_category = VisionGuardPredictor._find_category_mismatch(
+        {
+            "screw": 8.0,
+            "capsule": 6.0,
+            "metal_nut": 10.0,
+        },
+        "screw",
+    )
+    assert defect_in_selected_category is None
 
 
 def test_anomaly_score_calculation():

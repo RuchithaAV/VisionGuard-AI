@@ -49,6 +49,21 @@ def test_defect_area_percentage_calculation():
     assert result.defect_area_pct == pytest.approx(25.0)
 
 
+def test_defect_area_uses_peak_relative_threshold():
+    engine = DecisionEngine(
+        pass_std_multiplier=2.0,
+        fail_std_multiplier=3.5,
+        val_mean=10.0,
+        val_std=1.0,
+    )
+    heatmap = np.full((100, 100), 5.0, dtype=np.float32)
+    heatmap[40:50, 40:50] = 20.0
+
+    result = engine.evaluate(raw_score=20.0, heatmap=heatmap)
+
+    assert result.defect_area_pct == pytest.approx(1.0)
+
+
 def test_decision_engine_serialization_roundtrip():
     """Verify to_dict() and from_dict() preserve calibrated thresholds exactly."""
     engine = DecisionEngine(pass_std_multiplier=2.0, fail_std_multiplier=3.5, category="capsule")
