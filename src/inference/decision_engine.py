@@ -1,4 +1,4 @@
-"""
+﻿"""
 VisionGuard AI - Calibrated 3-State Industrial Decision Engine (PASS / REVIEW / FAIL)
 
 Calibrates decision boundaries strictly from held-out normal validation scores
@@ -140,7 +140,14 @@ class DecisionEngine:
         defect_area_pct = 0.0
         if heatmap is not None:
             hmap = np.asarray(heatmap, dtype=np.float64)
-            loc_thresh = max(t_fail, float(np.max(hmap)) * 0.65) if score > t_pass else t_pass
+            if score > t_pass:
+                peak = float(np.max(hmap))
+                # Measure the spatial footprint relative to the image's own hotspot.
+                # Absolute FAIL thresholds are image-level values and are too
+                # coarse to represent 0.15-0.65% screw defects.
+                loc_thresh = peak * 0.65
+            else:
+                loc_thresh = t_pass
             defect_area_pct = float(np.mean(hmap > loc_thresh) * 100.0)
 
         return DecisionResult(
