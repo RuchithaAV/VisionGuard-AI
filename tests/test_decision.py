@@ -64,6 +64,23 @@ def test_defect_area_uses_peak_relative_threshold():
     assert result.defect_area_pct == pytest.approx(1.0)
 
 
+def test_screw_pass_is_reviewed_for_concentrated_hotspot():
+    engine = DecisionEngine(
+        pass_std_multiplier=0.75,
+        fail_std_multiplier=2.0,
+        category="screw",
+        val_mean=27.8375,
+        val_std=2.0684,
+    )
+    heatmap = np.full((384, 384), 3.0, dtype=np.float32)
+    heatmap[150:180, 180:240] = 18.8
+    heatmap[160:170, 190:210] = 22.2
+
+    result = engine.evaluate(raw_score=27.8595, heatmap=heatmap)
+
+    assert result.decision == "REVIEW"
+
+
 def test_decision_engine_serialization_roundtrip():
     """Verify to_dict() and from_dict() preserve calibrated thresholds exactly."""
     engine = DecisionEngine(pass_std_multiplier=2.0, fail_std_multiplier=3.5, category="capsule")

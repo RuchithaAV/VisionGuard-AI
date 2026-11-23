@@ -134,13 +134,27 @@ class DecisionEngine:
         else:
             decision = "FAIL"
 
+        # The screw category contains defects much smaller than 1% of the image.
+        # A coarse image maximum can remain close to the normal mean even when
+        # only a few small patch regions carry strong anomaly evidence.
+        if decision == "PASS" and self.category == "screw" and heatmap is not None:
+            hmap = np.asarray(heatmap, dtype=np.float64)
+            peak = float(np.max(hmap))
+            p995 = float(np.percentile(hmap, 99.5))
+            p999 = float(np.percentile(hmap, 99.9))
+            tail_ratio = p999 / max(p995, 1e-6)
+            concentrated_pixels = float(np.mean(hmap >= peak * 0.65) * 100.0)
+
+            if tail_ratio >= 1.14 and concentrated_pixels >= 0.75:
+                decision = "REVIEW"
+
         z_score = (score - self.val_mean) / self.val_std
         norm_score = self._normalize_score(score)
 
         defect_area_pct = 0.0
         if heatmap is not None:
             hmap = np.asarray(heatmap, dtype=np.float64)
-            if score > t_pass:
+            if decision != "PASS":
                 peak = float(np.max(hmap))
                 # Measure the spatial footprint relative to the image's own hotspot.
                 # Absolute FAIL thresholds are image-level values and are too
